@@ -1,0 +1,376 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load finance_filters %}
+
+{% block title %}
+    Danh sách Giao dịch - Quản lý Chi tiêu Cá nhân
+{% endblock %}
+
+{% block content %}
+<style>
+    .transaction-table {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .table-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 1rem;
+    }
+
+    .table-body {
+        padding: 0;
+    }
+
+    .table-row {
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
+        gap: 1rem;
+        padding: 1rem;
+        align-items: center;
+        border-bottom: 1px solid #eee;
+        transition: all 0.3s ease;
+    }
+
+    .table-row:last-child {
+        border-bottom: none;
+    }
+
+    .table-row:hover {
+        background: #f8f9fa;
+        transform: translateX(5px);
+    }
+
+    .amount-cell {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .amount-cell.income {
+        color: #28a745;
+    }
+
+    .amount-cell.expense {
+        color: #dc3545;
+    }
+
+    .action-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-action {
+        padding: 0.5rem;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .btn-action:hover {
+        transform: scale(1.1);
+    }
+
+    .btn-add {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-add:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .table-row {
+        animation: slideIn 0.5s ease forwards;
+    }
+
+    .table-row:nth-child(1) { animation-delay: 0.1s; }
+    .table-row:nth-child(2) { animation-delay: 0.2s; }
+    .table-row:nth-child(3) { animation-delay: 0.3s; }
+    .table-row:nth-child(4) { animation-delay: 0.4s; }
+    .table-row:nth-child(5) { animation-delay: 0.5s; }
+
+    @media (max-width: 768px) {
+        .table-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+        
+        .table-header {
+            display: none;
+        }
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label for="type" class="form-label">Loại giao dịch</label>
+                            <select name="type" id="type" class="form-select">
+                                <option value="">Tất cả</option>
+                                <option value="income" {% if request.GET.type == 'income' %}selected{% endif %}>Thu nhập</option>
+                                <option value="expense" {% if request.GET.type == 'expense' %}selected{% endif %}>Chi tiêu</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="category" class="form-label">Danh mục</label>
+                            <select name="category" id="category" class="form-select select2">
+                                <option value="">Tất cả</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="card" class="form-label">Thẻ/Ví</label>
+                            <select name="card" id="card" class="form-select select2">
+                                <option value="">Tất cả</option>
+                                {% for card in cards %}
+                                <option value="{{ card.id }}" {% if request.GET.card == card.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ card.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="sort" class="form-label">Sắp xếp</label>
+                            <select name="sort" id="sort" class="form-select">
+                                <option value="-date" {% if request.GET.sort == '-date' %}selected{% endif %}>Mới nhất</option>
+                                <option value="date" {% if request.GET.sort == 'date' %}selected{% endif %}>Cũ nhất</option>
+                                <option value="-amount" {% if request.GET.sort == '-amount' %}selected{% endif %}>Số tiền giảm dần</option>
+                                <option value="amount" {% if request.GET.sort == 'amount' %}selected{% endif %}>Số tiền tăng dần</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="start_date" class="form-label">Từ ngày</label>
+                            <input type="date" name="start_date" id="start_date" class="form-control" 
+                                   value="{{ request.GET.start_date|default:'' }}">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="end_date" class="form-label">Đến ngày</label>
+                            <input type="date" name="end_date" id="end_date" class="form-control" 
+                                   value="{{ request.GET.end_date|default:'' }}">
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="search" class="form-label">Tìm kiếm</label>
+                            <div class="input-group">
+                                <input type="text" name="search" id="search" class="form-control" 
+                                       placeholder="Tìm theo ghi chú, số tiền..." 
+                                       value="{{ request.GET.search|default:'' }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Tìm kiếm
+                                </button>
+                                <a href="{% url 'finance_app:transaction-list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-redo"></i> Đặt lại
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>Danh sách giao dịch
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Loại</th>
+                                    <th>Số tiền</th>
+                                    <th>Danh mục</th>
+                                    <th>Thẻ/Ví</th>
+                                    <th>Ghi chú</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in transactions %}
+                                <tr>
+                                    <td>{{ transaction.date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if transaction.transaction_type == 'income' %}
+                                        <span class="badge bg-success">Thu nhập</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Chi tiêu</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.amount|intcomma }} VNĐ</td>
+                                    <td>
+                                        <i class="fas {{ transaction.category.icon }} me-1"></i>
+                                        {{ transaction.category.name }}
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-credit-card me-1"></i>
+                                        {{ transaction.card.name }}
+                                    </td>
+                                    <td>{{ transaction.note|default:"-" }}</td>
+                                    <td>
+                                        <a href="{% url 'finance_app:transaction-update' transaction.pk %}" 
+                                           class="btn btn-sm btn-primary" title="Sửa">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'finance_app:transaction-delete' transaction.pk %}" 
+                                           class="btn btn-sm btn-danger" title="Xóa">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">Không có giao dịch nào</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if is_paginated %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #007bff;
+    }
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #007bff;
+    }
+    .select2-container--default .select2-results__option {
+        padding: 8px;
+    }
+    .table th {
+        white-space: nowrap;
+    }
+    .badge {
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('.select2').select2({
+        placeholder: "Chọn...",
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+{% endblock %}

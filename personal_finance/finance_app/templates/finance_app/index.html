@@ -1,0 +1,343 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block title %}Trang chủ - Quản lý Chi tiêu{% endblock %}
+
+{% block content %}
+<div style="display:none;">
+    <p>Debug: transactions_count = {{ transactions_count }}</p>
+    <p>Debug: cards_count = {{ cards_count }}</p>
+    <p>Debug: goals_count = {{ goals_count }}</p>
+    <p>Debug: monthly_income = {{ monthly_income }}</p>
+    <p>Debug: monthly_expense = {{ monthly_expense }}</p>
+    <p>Debug: monthly_balance = {{ monthly_balance }}</p>
+</div>
+
+<div class="container py-4">
+    <div class="welcome-section mb-4">
+        <h1 class="display-4">Xin chào, {{ user.username }}!</h1>
+        <p class="lead text-muted">Chào mừng bạn đến với ứng dụng quản lý tài chính cá nhân</p>
+    </div>
+
+    <div class="stats-overview mb-5">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ transactions_count|intcomma }}</h3>
+                        <p class="stat-label">Giao dịch</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ cards_count|intcomma }}</h3>
+                        <p class="stat-label">Ví/Thẻ</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ goals_count|intcomma }}</h3>
+                        <p class="stat-label">Mục tiêu</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number balance" title="{{ monthly_balance|intcomma }} ₫">{{ monthly_balance|intcomma }} VNĐ</h3>
+                        <p class="stat-label">Số dư tháng này</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Thu nhập tháng này</h5>
+                    <h2 class="text-success">{{ monthly_income|intcomma }} VNĐ</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Chi tiêu tháng này</h5>
+                    <h2 class="text-danger">{{ monthly_expense|intcomma }} VNĐ</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card recent-transactions mb-5">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Giao dịch gần đây</h5>
+            <div>
+                <a href="{% url 'finance_app:transaction-create' %}" class="btn btn-sm btn-primary me-2">
+                    <i class="fas fa-plus"></i> Thêm mới
+                </a>
+                <a href="{% url 'finance_app:transaction-list' %}" class="btn btn-sm btn-outline-primary">
+                    Xem tất cả
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table">
+                    <tbody>
+                        {% for transaction in recent_transactions|slice:":5" %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="transaction-icon {% if transaction.transaction_type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
+                                        <i class="fas {% if transaction.transaction_type == 'income' %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">{{ transaction.note }}</h6>
+                                        <small class="text-muted">
+                                            <i class="fas fa-tag me-1"></i>{{ transaction.category.name }}
+                                            <i class="fas fa-wallet ms-2 me-1"></i>{{ transaction.card.name }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <span class="{% if transaction.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                    {% if transaction.transaction_type == 'income' %}+{% else %}-{% endif %}{{ transaction.amount|intcomma }} VNĐ
+                                </span>
+                                <br>
+                                <small class="text-muted">{{ transaction.date }}</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center py-4">
+                                <div class="empty-state">
+                                    <i class="fas fa-receipt fa-3x mb-3"></i>
+                                    <p class="mb-0">Chưa có giao dịch nào</p>
+                                    <a href="{% url 'finance_app:transaction-create' %}" class="btn btn-primary mt-3">
+                                        <i class="fas fa-plus"></i> Thêm giao dịch đầu tiên
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="features-section">
+        <h2 class="text-center mb-4">Quản lý tài chính của bạn</h2>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h4>Ví và thẻ</h4>
+                    <p>Quản lý số dư và theo dõi chi tiêu từng ví</p>
+                    <a href="{% url 'finance_app:card-list' %}" class="btn btn-outline-primary mt-3">Quản lý ví</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <h4>Mục tiêu tài chính</h4>
+                    <p>Lập kế hoạch và theo dõi tiến độ tiết kiệm</p>
+                    <a href="{% url 'finance_app:goal-list' %}" class="btn btn-outline-primary mt-3">Xem mục tiêu</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h4>Phân tích chi tiêu</h4>
+                    <p>Xem báo cáo và thống kê chi tiết</p>
+                    <a href="{% url 'finance_app:statistics' %}" class="btn btn-outline-primary mt-3">Xem thống kê</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.3s ease;
+        border: 1px solid rgba(0,0,0,0.05);
+        min-height: 180px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        background: #ffffff;
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        background: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .stat-icon i {
+        font-size: 1.5rem;
+        color: #3498db;
+    }
+
+    .stat-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .stat-number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.2;
+        text-shadow: none;
+        color: #222 !important;
+    }
+
+    .stat-number.balance {
+        font-size: 1.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .stat-label {
+        color: #222 !important;
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding-top: 0.5rem;
+    }
+
+    .transaction-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-color);
+    }
+
+    .empty-state i {
+        color: var(--primary-color);
+        opacity: 0.5;
+    }
+
+    .feature-card {
+        background: #f8f9fa;
+        padding: 2rem;
+        border-radius: 15px;
+        text-align: center;
+        transition: transform 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        height: 100%;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        background: #ffffff;
+    }
+
+    .feature-icon {
+        width: 70px;
+        height: 70px;
+        background: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        color: var(--primary-color);
+        font-size: 1.8rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .feature-card h4 {
+        margin-bottom: 1rem;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .feature-card p {
+        color: #34495e;
+        margin-bottom: 1.5rem;
+        min-height: 48px;
+        opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+        .stat-card {
+            margin-bottom: 1rem;
+            min-height: 160px;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+        }
+        
+        .stat-number.balance {
+            font-size: 1.3rem;
+        }
+    }
+</style>
+{% endblock %} 

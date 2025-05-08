@@ -1,0 +1,293 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+
+{% block title %}Danh mục - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        max-width: 350px;
+    }
+    .notification {
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        margin-bottom: 10px;
+        padding: 15px;
+        position: relative;
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+    }
+    .notification.show {
+        transform: translateX(0);
+    }
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .notification-title {
+        font-weight: bold;
+        margin: 0;
+    }
+    .notification-close {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 1.2em;
+        padding: 0;
+    }
+    .notification-body {
+        margin: 0;
+        color: #666;
+    }
+    .notification.success {
+        border-left: 4px solid #28a745;
+    }
+    .notification.error {
+        border-left: 4px solid #dc3545;
+    }
+    .notification.info {
+        border-left: 4px solid #17a2b8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% csrf_token %}
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Danh mục</h1>
+        <div>
+            {% if is_admin %}
+            <a href="{% url 'finance_app:sync-categories' %}" class="btn btn-warning me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Đồng bộ danh mục mặc định cho tất cả người dùng">
+                <i class="fas fa-sync"></i> Đồng bộ danh mục
+            </a>
+            {% endif %}
+            <a href="{% url 'finance_app:category-create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Thêm danh mục
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h3>Danh mục thu nhập</h3>
+            <div class="list-group">
+                {% for category in categories %}
+                    {% if category.type == 'income' %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas {{ category.icon }} me-2"></i>
+                            {{ category.name }}
+                            {% if category.is_default %}
+                            <span class="badge bg-info ms-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Danh mục mặc định không thể xóa">Mặc định</span>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group">
+                            {% if is_admin %}
+                            <button type="button" 
+                                    class="btn btn-sm {% if category.is_default %}btn-warning{% else %}btn-outline-warning{% endif %} toggle-default-btn"
+                                    onclick="toggleDefault({{ category.id }})"
+                                    data-category-id="{{ category.id }}"
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="{% if category.is_default %}Bỏ đánh dấu mặc định{% else %}Đánh dấu là mặc định{% endif %}">
+                                <i class="fas fa-star"></i>
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'finance_app:category-update' category.pk %}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Sửa danh mục">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if not category.is_default or is_admin %}
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteCategory({{ category.id }}, {{ category.is_default|yesno:'true,false' }})"
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Xóa danh mục">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <h3>Danh mục chi tiêu</h3>
+            <div class="list-group">
+                {% for category in categories %}
+                    {% if category.type == 'expense' %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas {{ category.icon }} me-2"></i>
+                            {{ category.name }}
+                            {% if category.is_default %}
+                            <span class="badge bg-info ms-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Danh mục mặc định không thể xóa">Mặc định</span>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group">
+                            {% if is_admin %}
+                            <button type="button" 
+                                    class="btn btn-sm {% if category.is_default %}btn-warning{% else %}btn-outline-warning{% endif %} toggle-default-btn"
+                                    onclick="toggleDefault({{ category.id }})"
+                                    data-category-id="{{ category.id }}"
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="{% if category.is_default %}Bỏ đánh dấu mặc định{% else %}Đánh dấu là mặc định{% endif %}">
+                                <i class="fas fa-star"></i>
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'finance_app:category-update' category.pk %}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Sửa danh mục">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if not category.is_default or is_admin %}
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteCategory({{ category.id }}, {{ category.is_default|yesno:'true,false' }})"
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Xóa danh mục">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Khởi tạo tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+
+    // Hàm hiển thị thông báo
+    function showNotification(message, type = 'info') {
+        const container = document.getElementById('notificationContainer');
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-header">
+                <h6 class="notification-title">${type === 'success' ? 'Thành công' : type === 'error' ? 'Lỗi' : 'Thông báo'}</h6>
+                <button class="notification-close">&times;</button>
+            </div>
+            <div class="notification-body">${message}</div>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Hiển thị thông báo với animation
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Tự động ẩn sau 5 giây
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 5000);
+        
+        // Xử lý nút đóng
+        notification.querySelector('.notification-close').addEventListener('click', () => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        });
+    }
+
+    // Hàm xử lý toggle danh mục mặc định
+    async function toggleDefault(categoryId) {
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const response = await fetch(`{% url 'finance_app:toggle-default-category' 0 %}`.replace('0', categoryId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                const button = document.querySelector(`button[data-category-id="${categoryId}"]`);
+                const isDefault = data.is_default;
+
+                // Cập nhật class của nút
+                button.classList.remove(isDefault ? 'btn-outline-warning' : 'btn-warning');
+                button.classList.add(isDefault ? 'btn-warning' : 'btn-outline-warning');
+                
+                // Cập nhật tooltip
+                button.setAttribute('title', isDefault ? 'Bỏ đánh dấu mặc định' : 'Đánh dấu là mặc định');
+                
+                // Cập nhật badge và nút xóa
+                const categoryDiv = button.closest('.list-group-item');
+                const nameDiv = categoryDiv.querySelector('div:first-child');
+                let existingBadge = nameDiv.querySelector('.badge');
+                
+                if (isDefault && !existingBadge) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-info ms-2';
+                    badge.setAttribute('data-bs-toggle', 'tooltip');
+                    badge.setAttribute('data-bs-placement', 'top');
+                    badge.setAttribute('title', 'Danh mục mặc định không thể xóa');
+                    badge.textContent = 'Mặc định';
+                    nameDiv.appendChild(badge);
+                } else if (!isDefault && existingBadge) {
+                    existingBadge.remove();
+                }
+                
+                // Khởi tạo lại tooltips
+                tooltipList.forEach(tooltip => tooltip.dispose());
+                tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+
+                // Hiển thị thông báo
+                showNotification(data.message, 'success');
+            } else {
+                showNotification(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Có lỗi xảy ra khi cập nhật trạng thái danh mục', 'error');
+        }
+    }
+
+    // Hàm xử lý xóa danh mục
+    function deleteCategory(categoryId, isDefault) {
+        if (isDefault) {
+            showNotification('Không thể xóa danh mục mặc định', 'error');
+            return;
+        }
+
+        if (confirm('Bạn có chắc chắn muốn xóa danh mục này không?')) {
+            window.location.href = `{% url 'finance_app:category-delete' 0 %}`.replace('0', categoryId);
+        }
+    }
+</script>
+{% endblock %}
+
+{% endblock %}

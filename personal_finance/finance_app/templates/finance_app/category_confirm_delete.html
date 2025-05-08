@@ -1,0 +1,50 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+
+{% block title %}Xác nhận xóa danh mục - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Xác nhận xóa danh mục
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Bạn có chắc chắn muốn xóa danh mục "{{ object.name }}" không?
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ object.name }}</h5>
+                            <p class="card-text">
+                                <strong>Loại:</strong> {{ object.get_type_display }}<br>
+                                <strong>Mô tả:</strong> {{ object.description|default:"Không có mô tả" }}<br>
+                                <strong>Ngày tạo:</strong> {{ object.created_at|date:"d/m/Y" }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'finance_app:category-list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>Hủy
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i>Xác nhận xóa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

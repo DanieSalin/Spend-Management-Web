@@ -1,0 +1,106 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Góp tiền vào mục tiêu{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Góp tiền vào mục tiêu: {{ goal.name }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Số tiền đã tích lũy:</span>
+                            <span class="text-success">{{ goal.current_amount|intcomma }} VNĐ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Mục tiêu:</span>
+                            <span>{{ goal.target_amount|intcomma }} VNĐ</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar {% if goal.progress_percentage >= 100 %}bg-success{% else %}bg-primary{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ goal.progress_percentage }}%;" 
+                                 aria-valuenow="{{ goal.progress_percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ goal.progress_percentage }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_card" class="form-label">Chọn thẻ/ví:</label>
+                            <select name="card" id="id_card" class="form-select" required>
+                                <option value="">-- Chọn thẻ/ví --</option>
+                                {% for card in cards %}
+                                <option value="{{ card.id }}" data-balance="{{ card.balance }}">
+                                    {{ card.name }} (Số dư: {{ card.balance|intcomma }} VNĐ)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_amount" class="form-label">Số tiền góp:</label>
+                            <input type="number" name="amount" id="id_amount" class="form-control" required min="1000" step="1">
+                            <div class="form-text">
+                                Số tiền tối thiểu: 1,000 VNĐ
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'finance_app:goal-list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Quay lại
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Xác nhận
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cardSelect = document.getElementById('id_card');
+        const amountInput = document.getElementById('id_amount');
+        const maxAmount = {{ goal.remaining_amount }};
+
+        cardSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const cardBalance = parseFloat(selectedOption.dataset.balance);
+            amountInput.max = Math.min(cardBalance, maxAmount);
+        });
+
+        amountInput.addEventListener('input', function() {
+            const amount = parseFloat(this.value);
+            const cardBalance = parseFloat(cardSelect.options[cardSelect.selectedIndex].dataset.balance);
+            const maxAllowed = Math.min(cardBalance, maxAmount);
+
+            if (amount > maxAllowed) {
+                this.setCustomValidity(`Số tiền không được vượt quá ${maxAllowed.toLocaleString()} VNĐ`);
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    });
+</script>
+{% endblock %} 

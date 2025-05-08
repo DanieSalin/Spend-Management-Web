@@ -1,0 +1,91 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+
+{% block title %}Quản lý Mục tiêu Tài chính{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-4">
+                <i class="fas fa-bullseye text-primary me-2"></i>Mục tiêu Tài chính
+            </h2>
+            <a href="{% url 'finance_app:goal-create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Thêm Mục tiêu Mới
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tên mục tiêu</th>
+                                    <th>Số tiền mục tiêu</th>
+                                    <th>Đã tiết kiệm</th>
+                                    <th>Tiến độ</th>
+                                    <th>Ngày hoàn thành</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for goal in goals %}
+                                <tr>
+                                    <td>{{ goal.name }}</td>
+                                    <td>{{ goal.target_amount|floatformat:0 }} VNĐ</td>
+                                    <td>{{ goal.current_amount|floatformat:0 }} VNĐ</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: {{ goal.progress_percentage }}%">
+                                                {{ goal.progress_percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ goal.end_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if goal.status == 'completed' %}
+                                            <span class="badge bg-success">Hoàn thành</span>
+                                        {% elif goal.status == 'cancelled' %}
+                                            <span class="badge bg-danger">Đã hủy</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Đang thực hiện</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'finance_app:goal-contribute' goal.id %}" class="btn btn-sm btn-outline-success me-1">
+                                            <i class="fas fa-plus"></i>
+                                        </a>
+                                        <a href="{% url 'finance_app:goal-detail' goal.id %}" 
+                                           class="btn btn-sm btn-outline-info me-1">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'finance_app:goal-update' goal.id %}" 
+                                           class="btn btn-sm btn-outline-primary me-1">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'finance_app:goal-delete' goal.id %}" 
+                                           class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">Chưa có mục tiêu nào được tạo.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

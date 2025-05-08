@@ -1,0 +1,106 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+
+{% block title %}Chi tiết mục tiêu{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-4">
+                <i class="fas fa-bullseye text-primary me-2"></i>{{ goal.name }}
+            </h2>
+            <a href="{% url 'finance_app:goal-list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Quay lại
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Thông tin mục tiêu -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Thông tin mục tiêu</h5>
+                    <div class="mb-3">
+                        <label class="text-muted">Số tiền mục tiêu:</label>
+                        <div class="h5">{{ goal.target_amount|floatformat:0 }} VNĐ</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted">Đã tiết kiệm:</label>
+                        <div class="h5">{{ goal.current_amount|floatformat:0 }} VNĐ</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted">Còn thiếu:</label>
+                        <div class="h5">{{ remaining_amount|floatformat:0 }} VNĐ</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted">Tiến độ:</label>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ goal.progress_percentage }}%">
+                                {{ goal.progress_percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted">Ngày bắt đầu:</label>
+                        <div>{{ goal.start_date|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted">Ngày kết thúc:</label>
+                        <div>{{ goal.end_date|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted">Trạng thái:</label>
+                        <div>
+                            {% if goal.status == 'completed' %}
+                                <span class="badge bg-success">Hoàn thành</span>
+                            {% elif goal.status == 'cancelled' %}
+                                <span class="badge bg-danger">Đã hủy</span>
+                            {% else %}
+                                <span class="badge bg-warning">Đang thực hiện</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lịch sử đóng góp -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Hoạt động gần đây</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Thời gian</th>
+                                    <th>Số tiền</th>
+                                    <th>Từ thẻ/ví</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in transactions %}
+                                <tr>
+                                    <td>{{ transaction.date|date:"d/m/Y" }}</td>
+                                    <td>{{ transaction.amount|floatformat:0 }} VNĐ</td>
+                                    <td>{{ transaction.card.name }}</td>
+                                    <td>{{ transaction.note }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">Chưa có hoạt động nào.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

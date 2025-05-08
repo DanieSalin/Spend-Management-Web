@@ -1,0 +1,15 @@
+{% extends 'finance_app/base.html' %}
+
+{% block title %}Xóa Mục tiêu - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Xóa Mục tiêu</h2>
+    <p>Bạn có chắc chắn muốn xóa mục tiêu "{{ goal.name }}" không?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Xóa</button>
+        <a href="{% url 'finance_app:goal-list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %} 

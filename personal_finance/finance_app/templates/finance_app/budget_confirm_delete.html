@@ -1,0 +1,15 @@
+{% extends 'finance_app/base.html' %}
+
+{% block title %}Xóa Ngân sách - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Xóa Ngân sách</h2>
+    <p>Bạn có chắc chắn muốn xóa ngân sách "{{ budget.category }}" không?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Xóa</button>
+        <a href="{% url 'finance_app:budget-list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %} 

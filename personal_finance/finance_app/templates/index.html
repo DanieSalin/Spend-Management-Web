@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Trang chủ - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Tổng quan
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-primary text-white mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Tổng thu nhập</h6>
+                                    <h3 class="card-text">{{ total_income|default:"0" }} VNĐ</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-danger text-white mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Tổng chi tiêu</h6>
+                                    <h3 class="card-text">{{ total_expense|default:"0" }} VNĐ</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-success text-white mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Số dư hiện tại</h6>
+                                    <h3 class="card-text">{{ current_balance|default:"0" }} VNĐ</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-info text-white mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Số giao dịch</h6>
+                                    <h3 class="card-text">{{ transaction_count|default:"0" }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bullseye me-2"></i>Mục tiêu
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if goals %}
+                        {% for goal in goals %}
+                            <div class="mb-3">
+                                <h6>{{ goal.name }}</h6>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: {{goal.progress_percentage }}%">
+                                        {{ goal.progress_percentage }}%
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    {{ goal.current_amount|default:"0" }} / {{ goal.target_amount }} VNĐ
+                                </small>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Chưa có mục tiêu nào</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

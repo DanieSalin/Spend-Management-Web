@@ -1,0 +1,143 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Sửa{% else %}Thêm{% endif %} Danh mục - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #007bff;
+    }
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #007bff;
+    }
+    .select2-container--default .select2-results__option {
+        padding: 8px;
+    }
+    .select2-container--default .select2-results__option .icon-preview {
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-tags me-2"></i>
+                    {% if form.instance.pk %}Sửa{% else %}Thêm{% endif %} Danh mục
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            {{ error }}<br>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Tên danh mục</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.name.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.type.id_for_label }}" class="form-label">Loại</label>
+                        {{ form.type }}
+                        {% if form.type.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.type.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Mô tả</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.icon.id_for_label }}" class="form-label">Biểu tượng</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-icons"></i>
+                            </span>
+                            {{ form.icon }}
+                        </div>
+                        {% if form.icon.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.icon.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'finance_app:category-list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Quay lại
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Lưu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    function formatIcon(icon) {
+        if (!icon.id) { return icon.text; }
+        var $icon = $('<span><i class="fas ' + icon.id + ' me-2"></i>' + icon.text + '</span>');
+        return $icon;
+    }
+
+    $('.select2-icon').select2({
+        templateResult: formatIcon,
+        templateSelection: formatIcon,
+        placeholder: "Chọn hoặc tìm kiếm biểu tượng",
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+{% endblock %}
