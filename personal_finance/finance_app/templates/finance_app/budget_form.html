@@ -1,0 +1,14 @@
+{% extends 'finance_app/base.html' %}
+
+{% block title %}Thêm Ngân sách - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Thêm Ngân sách</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Lưu</button>
+    </form>
+</div>
+{% endblock %}

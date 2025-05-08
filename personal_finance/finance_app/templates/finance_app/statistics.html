@@ -1,0 +1,306 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Thống kê - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 1rem;
+    }
+    .card {
+        height: 100%;
+    }
+    .card-body {
+        padding: 1.25rem;
+    }
+    .table-responsive {
+        margin-top: 1rem;
+    }
+    .summary-card {
+        height: 100%;
+        transition: transform 0.2s;
+    }
+    .summary-card:hover {
+        transform: translateY(-5px);
+    }
+    .trend-chart-container {
+        height: 500px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Thống kê</h1>
+
+    <!-- Form lọc thời gian -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="period" class="form-label">Chọn khoảng thời gian:</label>
+                    <select name="period" id="period" class="form-select">
+                        <option value="month" {% if period == 'month' %}selected{% endif %}>Tháng này</option>
+                        <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Tháng trước</option>
+                        <option value="year" {% if period == 'year' %}selected{% endif %}>Năm nay</option>
+                        <option value="custom" {% if period == 'custom' %}selected{% endif %}>Tùy chọn</option>
+                    </select>
+                </div>
+                <div class="col-md-3 custom-date-range" style="display: none;">
+                    <label for="start_date" class="form-label">Từ ngày:</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3 custom-date-range" style="display: none;">
+                    <label for="end_date" class="form-label">Đến ngày:</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Xem thống kê</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tổng quan -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <h5 class="card-title">Tổng thu nhập</h5>
+                    <h3 class="text-success">{{ income_data|intcomma }} VNĐ</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <h5 class="card-title">Tổng chi tiêu</h5>
+                    <h3 class="text-danger">{{ expense_data|intcomma }} VNĐ</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <h5 class="card-title">Số dư</h5>
+                    <h3 class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ balance|intcomma }} VNĐ
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biểu đồ xu hướng -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Xu hướng thu chi theo thời gian</h5>
+        </div>
+        <div class="card-body">
+            <div class="chart-container trend-chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biểu đồ phân bố chi tiêu -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Phân bố chi tiêu theo danh mục</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Phân bố thu nhập theo danh mục</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="incomeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thống kê theo thẻ/ví -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Thống kê theo thẻ/ví</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Thẻ/Ví</th>
+                            <th>Thu nhập</th>
+                            <th>Chi tiêu</th>
+                            <th>Số dư</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for card in transactions_by_card %}
+                        <tr>
+                            <td>{{ card.card__name }}</td>
+                            <td class="text-success">{{ card.income|intcomma }} VNĐ</td>
+                            <td class="text-danger">{{ card.expense|intcomma }} VNĐ</td>
+                            <td class="{% if card.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ card.balance|intcomma }} VNĐ
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Hiển thị/ẩn trường ngày tùy chọn
+    document.getElementById('period').addEventListener('change', function() {
+        const customDateRange = document.querySelectorAll('.custom-date-range');
+        if (this.value === 'custom') {
+            customDateRange.forEach(el => el.style.display = 'block');
+        } else {
+            customDateRange.forEach(el => el.style.display = 'none');
+        }
+    });
+
+    // Khởi tạo biểu đồ xu hướng
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    const trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ dates|safe }},
+            datasets: [
+                {
+                    label: 'Thu nhập',
+                    data: {{ income_trend|safe }},
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                },
+                {
+                    label: 'Chi tiêu',
+                    data: {{ expense_trend|safe }},
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' VNĐ';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' VNĐ';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Khởi tạo biểu đồ phân bố chi tiêu
+    const expenseCtx = document.getElementById('expenseChart').getContext('2d');
+    const expenseChart = new Chart(expenseCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ expense_categories|safe }},
+            datasets: [{
+                data: {{ expense_amounts|safe }},
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(255, 159, 64, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed.toLocaleString() + ' VNĐ';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Khởi tạo biểu đồ phân bố thu nhập
+    const incomeCtx = document.getElementById('incomeChart').getContext('2d');
+    const incomeChart = new Chart(incomeCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ income_categories|safe }},
+            datasets: [{
+                data: {{ income_amounts|safe }},
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(255, 159, 64, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed.toLocaleString() + ' VNĐ';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

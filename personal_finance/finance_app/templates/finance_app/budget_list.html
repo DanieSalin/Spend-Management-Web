@@ -1,0 +1,41 @@
+{% extends 'finance_app/base.html' %}
+
+{% block title %}Danh sách Ngân sách - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Danh sách Ngân sách</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Danh mục</th>
+                <th>Số tiền</th>
+                <th>Kỳ hạn</th>
+                <th>Ngày bắt đầu</th>
+                <th>Ngày kết thúc</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for budget in budgets %}
+            <tr>
+                <td>{{ budget.category }}</td>
+                <td>{{ budget.amount }}</td>
+                <td>{{ budget.period }}</td>
+                <td>{{ budget.start_date }}</td>
+                <td>{{ budget.end_date }}</td>
+                <td>
+                    <a href="{% url 'finance_app:budget-update' budget.pk %}" class="btn btn-primary">Sửa</a>
+                    <a href="{% url 'finance_app:budget-delete' budget.pk %}" class="btn btn-danger">Xóa</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">Không có ngân sách nào.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'finance_app:budget-create' %}" class="btn btn-success">Thêm Ngân sách</a>
+</div>
+{% endblock %}

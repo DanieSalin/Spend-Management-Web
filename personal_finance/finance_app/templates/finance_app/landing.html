@@ -1,0 +1,126 @@
+{% extends 'finance_app/base_landing.html' %}
+{% load static %}
+
+{% block title %}Quản lý Chi tiêu Cá nhân - Trang chủ{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="container-fluid py-5 bg-primary bg-gradient text-white">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6 mb-4 mb-md-0">
+                <h1 class="display-4 fw-bold mb-3">Chào mừng đến với <span class="text-warning">Quản lý Chi tiêu</span></h1>
+                <p class="lead mb-4">Ứng dụng giúp bạn kiểm soát tài chính cá nhân, đặt mục tiêu tiết kiệm, theo dõi thu chi và phân tích chi tiêu một cách thông minh, hiện đại.</p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'finance_app:register' %}" class="btn btn-warning btn-lg">Đăng ký ngay</a>
+                    <a href="{% url 'finance_app:login' %}" class="btn btn-outline-light btn-lg">Đăng nhập</a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <img src="{% static 'images/finance_intro1.png' %}" alt="Finance Illustration" class="img-fluid rounded shadow-lg" style="max-height: 350px;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Section -->
+<div class="container py-5">
+    <div class="row text-center">
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                    <h3 class="card-title">{{ total_users }}</h3>
+                    <p class="card-text text-muted">Người dùng tin tưởng</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="fas fa-exchange-alt fa-3x text-success mb-3"></i>
+                    <h3 class="card-title">{{ total_transactions }}</h3>
+                    <p class="card-text text-muted">Giao dịch đã thực hiện</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="fas fa-bullseye fa-3x text-danger mb-3"></i>
+                    <h3 class="card-title">{{ total_goals }}</h3>
+                    <p class="card-text text-muted">Mục tiêu tài chính</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="container py-5 bg-light">
+    <h2 class="text-center mb-5">Tính năng nổi bật</h2>
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <img src="{% static 'images/finance_intro6.png' %}" alt="Quản lý thu chi" class="img-fluid mb-3" style="max-height: 120px;">
+                <h4 class="fw-bold">Quản lý thu chi</h4>
+                <p class="text-muted">Theo dõi mọi giao dịch, phân loại chi tiêu, kiểm soát dòng tiền hiệu quả.</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <img src="{% static 'images/finance_intro3.png' %}" alt="Mục tiêu tiết kiệm" class="img-fluid mb-3" style="max-height: 120px;">
+                <h4 class="fw-bold">Mục tiêu tiết kiệm</h4>
+                <p class="text-muted">Lập kế hoạch tài chính, đặt mục tiêu tiết kiệm và theo dõi tiến độ thực hiện.</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <img src="{% static 'images/finance_intro5.png' %}" alt="Phân tích thông minh" class="img-fluid mb-3" style="max-height: 120px;">
+                <h4 class="fw-bold">Phân tích thông minh</h4>
+                <p class="text-muted">Xem báo cáo, biểu đồ trực quan giúp bạn hiểu rõ hơn về thói quen chi tiêu.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="container-fluid py-5 bg-primary text-white text-center">
+    <div class="container">
+        <h2 class="mb-4">Bắt đầu quản lý tài chính của bạn ngay hôm nay</h2>
+        <p class="lead mb-4">Đăng ký miễn phí và khám phá các tính năng tuyệt vời của chúng tôi</p>
+        <a href="{% url 'finance_app:register' %}" class="btn btn-warning btn-lg">Đăng ký ngay</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bg-primary {
+        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%) !important;
+    }
+    .text-primary {
+        color: #6366F1 !important;
+    }
+    .btn-warning {
+        background-color: #F59E0B;
+        border-color: #F59E0B;
+    }
+    .btn-warning:hover {
+        background-color: #D97706;
+        border-color: #D97706;
+    }
+    .img-fluid {
+        box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+    }
+    .card {
+        transition: transform 0.2s;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    .lead {
+        color: rgba(255,255,255,0.9);
+    }
+</style>
+{% endblock %} 

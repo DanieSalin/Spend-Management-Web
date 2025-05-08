@@ -1,0 +1,79 @@
+{% extends 'finance_app/base.html' %}
+
+{% block title %}Thông tin cá nhân{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-user"></i> Thông tin cá nhân</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-4 text-center">
+                            {% if profile.avatar %}
+                                <img src="{{ profile.avatar.url }}" alt="Ảnh đại diện" class="img-fluid rounded-circle mb-3" style="max-width: 150px;">
+                            {% else %}
+                                <i class="fas fa-user-circle fa-6x mb-3 text-secondary"></i>
+                            {% endif %}
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    {{ form.avatar }}
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-2">
+                                    <i class="fas fa-upload"></i> Cập nhật ảnh
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Tên đăng nhập:</strong>
+                                </div>
+                                <div class="col-md-8">
+                                    {{ user.username }}
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Email:</strong>
+                                </div>
+                                <div class="col-md-8">
+                                    {{ user.email }}
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Ngày tham gia:</strong>
+                                </div>
+                                <div class="col-md-8">
+                                    {{ user.date_joined|date:"d/m/Y" }}
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Lần đăng nhập cuối:</strong>
+                                </div>
+                                <div class="col-md-8">
+                                    {{ user.last_login|date:"d/m/Y H:i" }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="{% url 'password_change' %}" class="btn btn-primary">
+                            <i class="fas fa-key"></i> Đổi mật khẩu
+                        </a>
+                        <a href="{% url 'finance_app:dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-home"></i> Về trang chủ
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

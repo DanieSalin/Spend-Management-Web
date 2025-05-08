@@ -1,0 +1,134 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}
+    Xác nhận xóa Giao dịch - Quản lý Chi tiêu Cá nhân
+{% endblock %}
+
+{% block content %}
+<style>
+    .delete-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .delete-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 1.5rem;
+    }
+
+    .delete-body {
+        padding: 2rem;
+    }
+
+    .delete-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .delete-info-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .delete-info-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .delete-info-item i {
+        width: 30px;
+        color: var(--secondary-color);
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-cancel {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+    }
+</style>
+
+<div class="delete-card">
+    <div class="delete-header">
+        <h2 class="mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xóa Giao dịch
+        </h2>
+    </div>
+    <div class="delete-body">
+        <div class="delete-info">
+            <div class="delete-info-item">
+                <i class="fas fa-calendar-alt"></i>
+                <div>
+                    <strong>Ngày giao dịch:</strong><br>
+                    {{ transaction.date|date:"d/m/Y" }}
+                </div>
+            </div>
+            <div class="delete-info-item">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <strong>Mô tả:</strong><br>
+                    {{ transaction.description }}
+                </div>
+            </div>
+            <div class="delete-info-item">
+                <i class="fas fa-money-bill-wave"></i>
+                <div>
+                    <strong>Số tiền:</strong><br>
+                    <span class="{% if transaction.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                        {{ transaction.amount|intcomma }} VNĐ
+                    </span>
+                </div>
+            </div>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'finance_app:transaction-detail' transaction.pk %}" class="btn-cancel">
+                    <i class="fas fa-times"></i>
+                    <span>Hủy</span>
+                </a>
+                <button type="submit" class="btn-delete">
+                    <i class="fas fa-trash"></i>
+                    <span>Xác nhận xóa</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

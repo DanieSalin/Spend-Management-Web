@@ -1,0 +1,166 @@
+{% extends 'finance_app/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Trang chủ - Quản lý Chi tiêu Cá nhân{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-home me-2"></i>Trang chủ
+        </h2>
+    </div>
+</div>
+
+<!-- Tổng quan tài chính -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-arrow-up me-2"></i>Thu nhập tháng này
+                </h5>
+                <h3 class="card-text">{{ monthly_income|intcomma }} VNĐ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-arrow-down me-2"></i>Chi tiêu tháng này
+                </h5>
+                <h3 class="card-text">{{ monthly_expense|intcomma }} VNĐ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-balance-scale me-2"></i>Số dư tháng này
+                </h5>
+                <h3 class="card-text">{{ monthly_balance|intcomma }} VNĐ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Giao dịch gần đây -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>Giao dịch gần đây
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Mô tả</th>
+                                <th>Thể loại</th>
+                                <th>Số tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.date|date:"d/m/Y" }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>
+                                    <span class="badge {% if transaction.transaction_type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transaction.get_transaction_type_display }}
+                                    </span>
+                                </td>
+                                <td class="{% if transaction.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                    {{ transaction.amount|intcomma }} VNĐ
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">Chưa có giao dịch nào.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-end mt-3">
+                    <a href="{% url 'finance_app:transaction-list' %}" class="btn btn-primary">
+                        <i class="fas fa-list me-1"></i>Xem tất cả
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thông tin khác -->
+    <div class="col-md-4">
+        <!-- Thẻ/Ví -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-credit-card me-2"></i>Thẻ/Ví
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for card in cards %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <i class="fas fa-{{ card.get_card_type_icon }} me-2"></i>
+                        {{ card.name }}
+                    </div>
+                    <span class="text-primary">{{ card.balance|intcomma }} VNĐ</span>
+                </div>
+                {% empty %}
+                <p class="text-muted">Chưa có thẻ/ví nào.</p>
+                {% endfor %}
+                <div class="text-end mt-3">
+                    <a href="{% url 'finance_app:card-list' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Thêm mới
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mục tiêu -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bullseye me-2"></i>Mục tiêu
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for goal in goals %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">{{ goal.name }}</h6>
+                        <span>{{ goal.current_amount|intcomma }}/{{ goal.target_amount|intcomma }} VNĐ</span>
+                    </div>
+                    <div class="progress mt-2">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {{ goal.progress_percentage }}%"
+                             aria-valuenow="{{ goal.progress_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ goal.progress_percentage }}%
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">Chưa có mục tiêu nào.</p>
+                {% endfor %}
+                <div class="text-end mt-3">
+                    <a href="{% url 'finance_app:goal-list' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Thêm mới
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
