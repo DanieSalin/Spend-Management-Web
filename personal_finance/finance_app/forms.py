@@ -29,11 +29,12 @@ class CategoryForm(forms.ModelForm):
     def clean_name(self):
         name = self.cleaned_data['name']
         user = self.instance.user if self.instance.pk else self.initial.get('user')
-        
-        # Kiểm tra xem danh mục đã tồn tại chưa, loại trừ danh mục đang được chỉnh sửa
-        if Category.objects.filter(user=user, name=name).exclude(pk=self.instance.pk if self.instance.pk else None).exists():
-            raise forms.ValidationError("Tên danh mục này đã tồn tại.")
-        
+        # Kiểm tra trùng tên danh mục cho user (không phân biệt loại)
+        qs = Category.objects.filter(user=user, name=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("Bạn không được đặt tên danh mục giống nhau.")
         return name
 
     def __init__(self, *args, **kwargs):
