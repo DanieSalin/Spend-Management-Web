@@ -13,8 +13,8 @@
                 <div class="card-body">
                     <div class="row mb-4">
                         <div class="col-md-4 text-center">
-                            {% if profile.avatar %}
-                                <img src="{{ profile.avatar.url }}" alt="Ảnh đại diện" class="img-fluid rounded-circle mb-3" style="max-width: 150px;">
+                            {% if user_profile.avatar %}
+                                <img src="{{ user_profile.avatar.url }}" alt="Ảnh đại diện" class="img-fluid rounded-circle mb-3" style="max-width: 150px;">
                             {% else %}
                                 <i class="fas fa-user-circle fa-6x mb-3 text-secondary"></i>
                             {% endif %}

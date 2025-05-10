@@ -20,6 +20,7 @@ from django.contrib.auth import logout
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST
+from django.db import transaction
 
 from .models import Category, Card, Goal, Budget, Transaction, GoalContribution, GoalTransaction, UserProfile, Notification
 from .forms import RegisterForm, LoginForm, CategoryForm, CardForm, GoalForm, BudgetForm, TransactionForm, GoalContributionForm, UserProfileForm
@@ -128,11 +129,21 @@ class CategoryCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.user = self.request.user
         response = super().form_valid(form)
+        
+        # Lấy admin user
+        User = get_user_model()
+        admin_user = User.objects.filter(is_superuser=True).first()
+        
+        # Tạo danh sách người dùng cần thông báo
+        users_to_notify = [self.request.user]
+        if admin_user and admin_user != self.request.user:
+            users_to_notify.append(admin_user)
+            
         create_notification(
-            self.request.user,
-            'Danh mục mới',
-            f'Bạn đã tạo một danh mục mới: {form.instance.name} - {form.instance.get_type_display()}',
-            'system'
+            users=users_to_notify,
+            title='Danh mục mới',
+            message=f'Bạn đã tạo một danh mục mới: {form.instance.name} - {form.instance.get_type_display()}',
+            notification_type='system'
         )
         return response
     
@@ -168,16 +179,34 @@ class CategoryDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def test_func(self):
         category = self.get_object()
         return category.user == self.request.user
-
+        
     def delete(self, request, *args, **kwargs):
         category = self.get_object()
-        create_notification(
-            self.request.user,
-            'Xóa danh mục',
-            f'Bạn đã xóa danh mục: {category.name}',
-            'system'
-        )
-        return super().delete(request, *args, **kwargs)
+        if category.is_default:
+            messages.error(request, 'Không thể xóa danh mục mặc định!')
+            return redirect('finance_app:category-list')
+        try:
+            with transaction.atomic():
+                category_name = category.name
+                category_type = category.get_type_display()
+                User = get_user_model()
+                admin_user = User.objects.filter(is_superuser=True).first()
+                users_to_notify = [request.user]
+                if admin_user and admin_user != request.user:
+                    users_to_notify.append(admin_user)
+                # Tạo thông báo trước khi xóa
+                create_notification(
+                    users=users_to_notify,
+                    title='Xóa danh mục',
+                    message=f'Bạn đã xóa danh mục: {category_name} - {category_type}',
+                    notification_type='system'
+                )
+                # Xóa danh mục sau khi đã tạo thông báo
+                response = super().delete(request, *args, **kwargs)
+                return response
+        except Exception as e:
+            messages.error(request, f'Có lỗi xảy ra khi xóa danh mục: {str(e)}')
+            return redirect('finance_app:category-list')
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -1138,12 +1167,11 @@ class CustomLogoutView(View):
 
 class ProfileView(LoginRequiredMixin, TemplateView):
     template_name = 'registration/profile.html'
-    login_url = 'login'
-
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        profile, created = UserProfile.objects.get_or_create(user=self.request.user)
-        context['profile'] = profile
+        profile = UserProfile.objects.get_or_create(user=self.request.user)[0]
+        context['user_profile'] = profile
         context['form'] = UserProfileForm(instance=profile)
         return context
 
@@ -1411,7 +1439,7 @@ class NotificationListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user)
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1452,10 +1480,25 @@ def get_notifications(request):
     
     return JsonResponse(data)
 
-def create_notification(user, title, message, notification_type='system'):
-    Notification.objects.create(
-        user=user,
-        title=title,
-        message=message,
-        notification_type=notification_type
-    )
+def create_notification(users, title, message, notification_type='system'):
+    """
+    Tạo thông báo cho một hoặc nhiều người dùng
+    :param users: Một user hoặc một list các user
+    :param title: Tiêu đề thông báo
+    :param message: Nội dung thông báo
+    :param notification_type: Loại thông báo (system, transaction, goal, budget)
+    """
+    # Đảm bảo users là list (dù là 1 user hay nhiều user)
+    if not isinstance(users, (list, tuple)):
+        users = [users]
+    for user in users:
+        try:
+            Notification.objects.create(
+                user=user,
+                title=title,
+                message=message,
+                notification_type=notification_type,
+                is_read=False
+            )
+        except Exception as e:
+            print(f"Lỗi khi tạo thông báo: {str(e)}")

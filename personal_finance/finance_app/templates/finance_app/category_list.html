@@ -257,7 +257,13 @@
                 } else if (!isDefault && existingBadge) {
                     existingBadge.remove();
                 }
-                
+
+                // Cập nhật lại thuộc tính isDefault cho nút xóa
+                const deleteBtn = categoryDiv.querySelector('.btn-outline-danger, .btn-danger');
+                if (deleteBtn) {
+                    deleteBtn.onclick = function() { deleteCategory(categoryId, isDefault); };
+                }
+
                 // Khởi tạo lại tooltips
                 tooltipList.forEach(tooltip => tooltip.dispose());
                 tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
