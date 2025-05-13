@@ -1336,15 +1336,24 @@ def create_notification(users, title, message, notification_type='system'):
     print("Hoàn thành tạo thông báo")
 
 class ProfileView(LoginRequiredMixin, TemplateView):
-    template_name = 'finance_app/profile.html'
+    template_name = 'registration/profile.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['user'] = self.request.user
+        # Thêm form vào context
+        context['form'] = UserProfileForm()
+        
+        # Tạo hoặc lấy đối tượng UserProfile của người dùng
+        user_profile, created = UserProfile.objects.get_or_create(user=self.request.user)
+        context['user_profile'] = user_profile
+        
         return context
     
     def post(self, request, *args, **kwargs):
         user = request.user
+        
+        # Xử lý form cập nhật thông tin cá nhân
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
         email = request.POST.get('email')
@@ -1355,10 +1364,23 @@ class ProfileView(LoginRequiredMixin, TemplateView):
             user.last_name = last_name
         if email:
             user.email = email
-            
+        
         user.save()
-        messages.success(request, 'Thông tin cá nhân đã được cập nhật thành công!')
-        return redirect('finance_app:profile')
+        
+        # Xử lý form tải lên ảnh đại diện
+        if 'avatar' in request.FILES:
+            user_profile, created = UserProfile.objects.get_or_create(user=user)
+            form = UserProfileForm(request.POST, request.FILES, instance=user_profile)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Ảnh đại diện đã được cập nhật thành công!')
+            else:
+                for error in form.errors['avatar']:
+                    messages.error(request, f'Lỗi: {error}')
+        else:
+            messages.success(request, 'Thông tin cá nhân đã được cập nhật thành công!')
+        
+        return redirect('profile')
 
 class TransactionListView(LoginRequiredMixin, ListView):
     model = Transaction
