@@ -18,13 +18,17 @@
                             {% else %}
                                 <i class="fas fa-user-circle fa-6x mb-3 text-secondary"></i>
                             {% endif %}
-                            <form method="post" enctype="multipart/form-data">
+                            <form method="post" enctype="multipart/form-data" class="d-flex align-items-center">
                                 {% csrf_token %}
-                                <div class="form-group">
-                                    {{ form.avatar }}
+                                <div class="me-2" style="position: relative;">
+                                    <input type="file" id="id_avatar" name="avatar" style="display:none;" accept="image/*">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('id_avatar').click()">
+                                        <i class="fas fa-image"></i>
+                                    </button>
+                                    <small id="file-selected" class="form-text text-muted ms-2" style="position: absolute; bottom: -20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;"></small>
                                 </div>
-                                <button type="submit" class="btn btn-primary mt-2">
-                                    <i class="fas fa-upload"></i> Cập nhật ảnh
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload me-2"></i>Cập nhật ảnh
                                 </button>
                             </form>
                         </div>
@@ -76,4 +80,12 @@
         </div>
     </div>
 </div>
+
+<script>
+// Script để hiển thị tên file đã chọn
+document.getElementById('id_avatar').addEventListener('change', function() {
+    var fileName = this.files[0] ? this.files[0].name : '';
+    document.getElementById('file-selected').textContent = fileName ? 'Đã chọn: ' + fileName : '';
+});
+</script>
 {% endblock %} 
