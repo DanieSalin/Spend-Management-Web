@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from .default_categories import DEFAULT_CATEGORIES
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+from django.urls import reverse
 
 class Category(models.Model):
     """Danh mục chi tiêu hoặc thu nhập"""
@@ -44,13 +47,11 @@ class Card(models.Model):
         ('credit', 'Thẻ tín dụng'),
         ('debit', 'Thẻ ghi nợ'),
         ('ewallet', 'Ví điện tử'),
-        ('cash', 'Tiền mặt'),
-        ('other', 'Khác'),
     )
     
     name = models.CharField(max_length=100, verbose_name="Tên thẻ/ví")
     card_type = models.CharField(max_length=10, choices=CARD_TYPES, verbose_name="Loại thẻ/ví")
-    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Số dư")
+    balance = models.DecimalField(max_digits=20, decimal_places=2, default=0, verbose_name="Số dư")
     card_number = models.CharField(max_length=30, blank=True, null=True, verbose_name="Số thẻ")
     expiry_date = models.DateField(blank=True, null=True, verbose_name="Ngày hết hạn")
     color = models.CharField(max_length=20, default="#007bff", verbose_name="Màu sắc")
@@ -64,6 +65,31 @@ class Card(models.Model):
     
     def __str__(self):
         return f"{self.name} - {self.get_card_type_display()}"
+
+    def clean(self):
+        """Validate số dư không được âm"""
+        if self.balance < 0:
+            raise ValidationError({'balance': 'Số dư không được âm'})
+
+    def save(self, *args, **kwargs):
+        """Tự động chuyển số dư âm thành 0"""
+        if self.balance < 0:
+            self.balance = 0
+        super().save(*args, **kwargs)
+
+    def check_balance(self, amount):
+        """Kiểm tra số dư có đủ để thực hiện giao dịch không"""
+        return self.balance >= amount
+
+    def update_balance(self, amount, is_income=True):
+        """Cập nhật số dư sau khi thực hiện giao dịch"""
+        if is_income:
+            self.balance += amount
+        else:
+            if not self.check_balance(amount):
+                raise ValidationError('Số dư không đủ để thực hiện giao dịch')
+            self.balance -= amount
+        self.save()
 
 class Goal(models.Model):
     """Mục tiêu tài chính"""
@@ -151,40 +177,32 @@ class Transaction(models.Model):
     def save(self, *args, **kwargs):
         # Nếu đây là giao dịch mới
         if not self.pk:
+            # Kiểm tra số dư trước khi thực hiện giao dịch
+            if self.transaction_type == 'expense' and not self.card.check_balance(self.amount):
+                raise ValidationError('Số dư không đủ để thực hiện giao dịch')
+                
             # Cập nhật số dư thẻ/ví
-            if self.transaction_type == 'income':
-                self.card.balance += self.amount
-            else:  # expense
-                self.card.balance -= self.amount
-            self.card.save()
+            self.card.update_balance(self.amount, is_income=(self.transaction_type == 'income'))
         else:
             # Nếu đang cập nhật giao dịch
             old_transaction = Transaction.objects.get(pk=self.pk)
             old_card = old_transaction.card
             
             # Hoàn tác số dư cũ
-            if old_transaction.transaction_type == 'income':
-                old_card.balance -= old_transaction.amount
-            else:  # expense
-                old_card.balance += old_transaction.amount
-            old_card.save()
+            old_card.update_balance(old_transaction.amount, is_income=(old_transaction.transaction_type == 'income'))
+            
+            # Kiểm tra số dư trước khi thực hiện giao dịch mới
+            if self.transaction_type == 'expense' and not self.card.check_balance(self.amount):
+                raise ValidationError('Số dư không đủ để thực hiện giao dịch')
             
             # Áp dụng số dư mới
-            if self.transaction_type == 'income':
-                self.card.balance += self.amount
-            else:  # expense
-                self.card.balance -= self.amount
-            self.card.save()
+            self.card.update_balance(self.amount, is_income=(self.transaction_type == 'income'))
             
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         # Hoàn tác số dư thẻ/ví khi xóa giao dịch
-        if self.transaction_type == 'income':
-            self.card.balance -= self.amount
-        else:  # expense
-            self.card.balance += self.amount
-        self.card.save()
+        self.card.update_balance(self.amount, is_income=(self.transaction_type == 'expense'))
         super().delete(*args, **kwargs)
 
 class GoalContribution(models.Model):
@@ -198,20 +216,19 @@ class GoalContribution(models.Model):
         return f"Góp {self.amount} VND vào mục tiêu {self.goal.name}"
 
     def save(self, *args, **kwargs):
+        # Kiểm tra số dư trước khi thêm tiền vào mục tiêu
+        if self.card.balance <= 0 or self.card.balance < self.amount:
+            raise ValidationError('Số dư trong thẻ/ví không đủ để góp vào mục tiêu này.')
         # Cập nhật số dư thẻ/ví
-        self.card.balance -= self.amount
-        self.card.save()
-        
+        self.card.update_balance(self.amount, is_income=False)
         # Cập nhật số tiền hiện tại của mục tiêu
         self.goal.current_amount += self.amount
         self.goal.save()
-        
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         # Hoàn tác số dư thẻ/ví
-        self.card.balance += self.amount
-        self.card.save()
+        self.card.update_balance(self.amount, is_income=True)
         
         # Hoàn tác số tiền hiện tại của mục tiêu
         self.goal.current_amount -= self.amount

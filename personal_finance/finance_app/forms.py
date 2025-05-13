@@ -260,7 +260,21 @@ class CategoryForm(forms.ModelForm):
 class CardForm(forms.ModelForm):
     class Meta:
         model = Card
-        fields = ['name', 'card_type', 'balance', 'card_number', 'expiry_date', 'color']
+        fields = ['name', 'card_type', 'balance', 'card_number', 'expiry_date']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập tên thẻ/ví'}),
+            'card_type': forms.Select(attrs={'class': 'form-control'}),
+            'balance': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Nhập số dư'}),
+            'card_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập số thẻ (nếu có)'}),
+            'expiry_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        }
+        labels = {
+            'name': 'Tên thẻ/ví',
+            'card_type': 'Loại thẻ/ví',
+            'balance': 'Số dư (VNĐ)',
+            'card_number': 'Số thẻ (tùy chọn)',
+            'expiry_date': 'Ngày hết hạn (tùy chọn)',
+        }
 
 class GoalForm(forms.ModelForm):
     class Meta:

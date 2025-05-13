@@ -289,9 +289,8 @@
             return;
         }
 
-        if (confirm('Bạn có chắc chắn muốn xóa danh mục này không?')) {
-            window.location.href = `{% url 'finance_app:category-delete' 0 %}`.replace('0', categoryId);
-        }
+        // Chuyển thẳng đến trang xác nhận xóa
+        window.location.href = `{% url 'finance_app:category-delete' 0 %}`.replace('0', categoryId);
     }
 </script>
 {% endblock %}

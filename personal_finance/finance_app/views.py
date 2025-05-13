@@ -21,9 +21,20 @@ from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST
 from django.db import transaction
+from django.core.exceptions import ValidationError
 
 from .models import Category, Card, Goal, Budget, Transaction, GoalContribution, GoalTransaction, UserProfile, Notification
 from .forms import RegisterForm, LoginForm, CategoryForm, CardForm, GoalForm, BudgetForm, TransactionForm, GoalContributionForm, UserProfileForm
+
+class LandingView(TemplateView):
+    template_name = 'finance_app/landing.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_users'] = User.objects.count()
+        context['total_transactions'] = Transaction.objects.count()
+        context['total_goals'] = Goal.objects.count()
+        return context
 
 # Trang đăng ký
 class RegisterView(CreateView):
@@ -181,30 +192,50 @@ class CategoryDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return category.user == self.request.user
         
     def delete(self, request, *args, **kwargs):
+        print(f"--- Bắt đầu thực thi delete() cho Category --- ID: {kwargs.get('pk')}") # DEBUG START
         category = self.get_object()
+        print("--- Đã lấy đối tượng Category --- ") # DEBUG GET OBJECT
+        
+        # Kiểm tra danh mục mặc định trước
         if category.is_default:
             messages.error(request, 'Không thể xóa danh mục mặc định!')
             return redirect('finance_app:category-list')
+            
         try:
-            with transaction.atomic():
-                category_name = category.name
-                category_type = category.get_type_display()
-                User = get_user_model()
-                admin_user = User.objects.filter(is_superuser=True).first()
-                users_to_notify = [request.user]
-                if admin_user and admin_user != request.user:
-                    users_to_notify.append(admin_user)
-                # Tạo thông báo trước khi xóa
-                create_notification(
-                    users=users_to_notify,
-                    title='Xóa danh mục',
-                    message=f'Bạn đã xóa danh mục: {category_name} - {category_type}',
-                    notification_type='system'
-                )
-                # Xóa danh mục sau khi đã tạo thông báo
-                response = super().delete(request, *args, **kwargs)
-                return response
+            # Lấy thông tin cần thiết TRƯỚC khi xóa
+            category_name = category.name
+            category_type = category.get_type_display()
+            user_to_notify = request.user
+            
+            # Lấy admin user (nếu cần thông báo cho cả admin)
+            User = get_user_model()
+            admin_user = User.objects.filter(is_superuser=True).first()
+            users_to_notify = [user_to_notify]
+            if admin_user and admin_user != user_to_notify:
+                users_to_notify.append(admin_user)
+                
+            # Thêm lệnh print để debug
+            print(f"Đang tạo thông báo xóa danh mục: {category_name}")
+            
+            # Tạo thông báo TRƯỚC khi xóa đối tượng
+            create_notification(
+                users=users_to_notify,
+                title='Xóa danh mục',
+                message=f'Danh mục \'{category_name}\' ({category_type}) đã được xóa thành công.', # Cập nhật message rõ ràng hơn
+                notification_type='system'
+            )
+            
+            # Thêm lệnh print để xác nhận gọi hàm
+            print("Đã gọi hàm tạo thông báo xóa danh mục")
+            
+            # Thực hiện xóa đối tượng
+            response = super().delete(request, *args, **kwargs)
+            print(f"Đã thực hiện super().delete() cho danh mục {category_name}") # DEBUG
+            messages.success(request, f"Đã xóa danh mục '{category_name}' thành công.") # Thông báo thành công
+            return response
+            
         except Exception as e:
+            print(f"Lỗi khi xóa danh mục hoặc tạo thông báo: {str(e)}")
             messages.error(request, f'Có lỗi xảy ra khi xóa danh mục: {str(e)}')
             return redirect('finance_app:category-list')
 
@@ -346,13 +377,39 @@ class CardDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def delete(self, request, *args, **kwargs):
         card = self.get_object()
-        create_notification(
-            self.request.user,
-            'Xóa thẻ/ví',
-            f'Bạn đã xóa thẻ/ví: {card.name}',
-            'system'
-        )
-        return super().delete(request, *args, **kwargs)
+        try:
+            # Lấy thông tin thẻ/ví trước khi xóa
+            card_name = card.name
+            card_type = card.get_card_type_display()
+            
+            # Lấy admin user
+            User = get_user_model()
+            admin_user = User.objects.filter(is_superuser=True).first()
+            
+            # Tạo danh sách người dùng cần thông báo
+            users_to_notify = [request.user]
+            if admin_user and admin_user != request.user:
+                users_to_notify.append(admin_user)
+            
+            # Thêm lệnh print để debug
+            print(f"Đang tạo thông báo xóa thẻ/ví: {card_name}")
+            
+            # Tạo thông báo
+            create_notification(
+                users=users_to_notify,
+                title='Xóa thẻ/ví',
+                message=f'Thẻ/ví {card_name} ({card_type}) đã được xóa',
+                notification_type='system'
+            )
+            
+            # Xóa card sau khi đã tạo thông báo
+            response = super().delete(request, *args, **kwargs)
+            print("Đã xóa thẻ/ví thành công")
+            return response
+        except Exception as e:
+            print(f"Lỗi khi xóa thẻ/ví: {str(e)}")
+            messages.error(request, f'Có lỗi xảy ra: {str(e)}')
+            return redirect('finance_app:card-list')
 
 # Quản lý mục tiêu
 class GoalListView(LoginRequiredMixin, ListView):
@@ -397,12 +454,15 @@ class GoalUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
+        # Tạo thông báo trong hệ thống
         create_notification(
             self.request.user,
             'Cập nhật mục tiêu',
             f'Bạn đã cập nhật mục tiêu: {form.instance.name}',
             'goal'
         )
+        # Thêm dòng này để hiển thị thông báo thành công
+        messages.success(self.request, f'Đã cập nhật mục tiêu {form.instance.name} thành công')
         return response
 
 class GoalDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -415,14 +475,44 @@ class GoalDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return goal.user == self.request.user
 
     def delete(self, request, *args, **kwargs):
+        print(f"--- Bắt đầu thực thi delete() cho Goal --- ID: {kwargs.get('pk')}") # DEBUG START
         goal = self.get_object()
-        create_notification(
-            self.request.user,
-            'Xóa mục tiêu',
-            f'Bạn đã xóa mục tiêu: {goal.name}',
-            'goal'
-        )
-        return super().delete(request, *args, **kwargs)
+        print("--- Đã lấy đối tượng Goal --- ") # DEBUG GET OBJECT
+        try:
+            # Lấy thông tin mục tiêu trước khi xóa
+            goal_name = goal.name
+            goal_amount = goal.target_amount
+            user_to_notify = request.user
+            
+            # Lấy admin user (nếu cần)
+            User = get_user_model()
+            admin_user = User.objects.filter(is_superuser=True).first()
+            users_to_notify = [user_to_notify]
+            if admin_user and admin_user != user_to_notify:
+                users_to_notify.append(admin_user)
+            
+            # Thêm lệnh print để debug
+            print(f"Đang tạo thông báo xóa mục tiêu: {goal_name}")
+            
+            # Tạo thông báo TRƯỚC khi xóa
+            create_notification(
+                users=users_to_notify,
+                title='Xóa mục tiêu',
+                message=f'Mục tiêu \'{goal_name}\' ({goal_amount:,.0f} VNĐ) đã được xóa',
+                notification_type='goal'
+            )
+            print("Đã gọi hàm tạo thông báo xóa mục tiêu") # DEBUG
+            
+            # Xóa mục tiêu sau khi đã tạo thông báo
+            response = super().delete(request, *args, **kwargs)
+            print(f"Đã thực hiện super().delete() cho mục tiêu {goal_name}") # DEBUG
+            messages.success(request, f"Đã xóa mục tiêu '{goal_name}' thành công.")
+            return response
+            
+        except Exception as e:
+            print(f"Lỗi khi xóa mục tiêu hoặc tạo thông báo: {str(e)}")
+            messages.error(request, f'Có lỗi xảy ra khi xóa mục tiêu: {str(e)}')
+            return redirect('finance_app:goal-list')
 
 class GoalDetailView(LoginRequiredMixin, DetailView):
     model = Goal
@@ -439,9 +529,27 @@ class GoalDetailView(LoginRequiredMixin, DetailView):
         # Tính số tiền còn thiếu
         context['remaining_amount'] = max(0, goal.target_amount - goal.current_amount)
         
-        # Lấy lịch sử giao dịch của mục tiêu này
-        context['transactions'] = goal.transactions.all()
+        # Lấy lịch sử giao dịch của mục tiêu này, sắp xếp theo thời gian gần nhất
+        transactions = goal.transactions.all().order_by('-date', '-created_at')
         
+        # Phân trang cho các giao dịch
+        paginator = Paginator(transactions, 10)  # 10 giao dịch mỗi trang
+        page = self.request.GET.get('page')
+        transactions_page = paginator.get_page(page)
+        
+        context['transactions'] = transactions_page
+        context['total_contributions'] = transactions.count()
+        
+        # Tính tổng số tiền đã đóng góp
+        context['total_contributed'] = transactions.aggregate(total=Sum('amount'))['total'] or 0
+        
+        # Tính thời gian còn lại
+        if goal.status == 'in_progress' and goal.end_date > timezone.now().date():
+            days_left = (goal.end_date - timezone.now().date()).days
+            context['days_left'] = days_left
+        else:
+            context['days_left'] = 0
+            
         return context
 
 # Quản lý ngân sách
@@ -547,13 +655,40 @@ class BudgetDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def delete(self, request, *args, **kwargs):
         budget = self.get_object()
-        create_notification(
-            self.request.user,
-            'Xóa ngân sách',
-            f'Bạn đã xóa ngân sách: {budget.category.name}',
-            'budget'
-        )
-        return super().delete(request, *args, **kwargs)
+        try:
+            # Lấy thông tin ngân sách trước khi xóa
+            budget_category = budget.category.name
+            budget_amount = budget.amount
+            budget_period = budget.get_period_display()
+            
+            # Lấy admin user
+            User = get_user_model()
+            admin_user = User.objects.filter(is_superuser=True).first()
+            
+            # Tạo danh sách người dùng cần thông báo
+            users_to_notify = [request.user]
+            if admin_user and admin_user != request.user:
+                users_to_notify.append(admin_user)
+            
+            # Thêm lệnh print để debug
+            print(f"Đang tạo thông báo xóa ngân sách: {budget_category}")
+            
+            # Tạo thông báo
+            create_notification(
+                users=users_to_notify,
+                title='Xóa ngân sách',
+                message=f'Ngân sách {budget_category} ({budget_amount:,.0f} VNĐ - {budget_period}) đã được xóa',
+                notification_type='budget'
+            )
+            
+            # Xóa ngân sách sau khi đã tạo thông báo
+            response = super().delete(request, *args, **kwargs)
+            print("Đã xóa ngân sách thành công")
+            return response
+        except Exception as e:
+            print(f"Lỗi khi xóa ngân sách: {str(e)}")
+            messages.error(request, f'Có lỗi xảy ra: {str(e)}')
+            return redirect('finance_app:budget-list')
 
 # Thống kê
 @login_required
@@ -813,7 +948,22 @@ def admin_user_transactions(request, user_id):
 def admin_toggle_user_status(request, user_id):
     if request.method == 'POST':
         try:
+            # Kiểm tra nếu user_id là chính admin đang đăng nhập
+            if int(user_id) == request.user.id:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Không thể khóa tài khoản của chính bạn!'
+                })
+                
             user = User.objects.get(id=user_id)
+            
+            # Kiểm tra nếu đây là tài khoản superuser khác
+            if user.is_superuser and not request.user.is_superuser:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Không thể thay đổi trạng thái tài khoản admin!'
+                })
+                
             user.is_active = not user.is_active
             user.save()
             return JsonResponse({'success': True})
@@ -826,10 +976,30 @@ def admin_delete_user(request, user_id):
     if request.method == 'POST':
         try:
             user = User.objects.get(id=user_id)
+            username = user.username
+            
+            # Thêm lệnh print để debug
+            print(f"Đang tạo thông báo xóa người dùng: {username}")
+            
+            # Tạo thông báo trước khi xóa người dùng
+            create_notification(
+                request.user,
+                'Xóa người dùng',
+                f'Bạn đã xóa người dùng: {username}',
+                'system'
+            )
+            
+            # Xóa người dùng sau khi đã tạo thông báo
             user.delete()
+            print(f"Đã xóa người dùng: {username}")
+            
             return redirect('finance_app:admin-user-list')
         except User.DoesNotExist:
+            print("Không tìm thấy người dùng")
             messages.error(request, 'Người dùng không tồn tại')
+        except Exception as e:
+            print(f"Lỗi khi xóa người dùng: {str(e)}")
+            messages.error(request, f'Có lỗi xảy ra: {str(e)}')
     return redirect('finance_app:admin-user-list')
 
 class HomeView(LoginRequiredMixin, TemplateView):
@@ -971,364 +1141,17 @@ def goal_contribute(request, pk):
             
     return redirect('finance_app:goal-list')
 
-class GoalContributionView(LoginRequiredMixin, CreateView):
-    model = GoalContribution
-    form_class = GoalContributionForm
-    template_name = 'finance_app/goal_contribution.html'
-    
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-        
-    def form_valid(self, form):
-        goal = get_object_or_404(Goal, pk=self.kwargs['pk'], user=self.request.user)
-        form.instance.goal = goal
-        form.instance.user = self.request.user
-        
-        if form.instance.card.balance < form.instance.amount:
-            form.add_error('amount', 'Số dư không đủ để góp')
-            return self.form_invalid(form)
-            
-        remaining_amount = goal.target_amount - goal.current_amount
-        if form.instance.amount > remaining_amount:
-            form.add_error('amount', f'Số tiền góp không được vượt quá số tiền còn thiếu ({remaining_amount} VND)')
-            return self.form_invalid(form)
-            
-        response = super().form_valid(form)
-        create_notification(
-            self.request.user,
-            'Đóng góp mục tiêu',
-            f'Bạn đã đóng góp {form.instance.amount} VND vào mục tiêu: {goal.name}',
-            'goal'
-        )
-        return response
-        
-    def get_success_url(self):
-        messages.success(self.request, 'Góp tiền vào mục tiêu thành công!')
-        return reverse('finance_app:goal-list')
-        
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        goal = get_object_or_404(Goal, pk=self.kwargs['pk'], user=self.request.user)
-        context['goal'] = goal
-        context['cards'] = Card.objects.filter(user=self.request.user)
-        return context
-
-class StatisticsView(LoginRequiredMixin, View):
-    def get(self, request):
-        # Lấy thời gian từ request
-        period = request.GET.get('period', 'month')
-        start_date = request.GET.get('start_date')
-        end_date = request.GET.get('end_date')
-
-        # Xác định khoảng thời gian
-        today = timezone.now().date()
-        if period == 'month':
-            start_date = today.replace(day=1)
-            end_date = today
-        elif period == 'last_month':
-            start_date = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
-            end_date = today.replace(day=1) - timedelta(days=1)
-        elif period == 'year':
-            start_date = today.replace(month=1, day=1)
-            end_date = today
-        else:
-            try:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            except (TypeError, ValueError):
-                start_date = today.replace(day=1)
-                end_date = today
-
-        # Lấy tất cả các thẻ/ví của người dùng
+class GoalContributionView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        goal = get_object_or_404(Goal, pk=pk, user=request.user)
         cards = Card.objects.filter(user=request.user)
-        
-        # Tạo danh sách thống kê cho từng thẻ/ví
-        transactions_by_card = []
-        for card in cards:
-            # Lấy giao dịch của thẻ/ví trong khoảng thời gian
-            transactions = Transaction.objects.filter(
-                card=card,
-                date__range=[start_date, end_date]
-            )
-            
-            # Tính tổng thu nhập và chi tiêu
-            income = transactions.filter(transaction_type='income').aggregate(
-                total=Sum('amount')
-            )['total'] or 0
-            
-            expense = transactions.filter(transaction_type='expense').aggregate(
-                total=Sum('amount')
-            )['total'] or 0
-            
-            # Tính số dư
-            balance = income - expense
-            
-            transactions_by_card.append({
-                'card__name': card.name,
-                'income': income,
-                'expense': expense,
-                'balance': balance
-            })
-
-        # Lấy dữ liệu cho biểu đồ xu hướng
-        dates = []
-        income_trend = []
-        expense_trend = []
-        
-        current_date = start_date
-        while current_date <= end_date:
-            transactions = Transaction.objects.filter(
-                user=request.user,
-                date=current_date
-            )
-            
-            income = transactions.filter(transaction_type='income').aggregate(
-                total=Sum('amount')
-            )['total'] or 0
-            
-            expense = transactions.filter(transaction_type='expense').aggregate(
-                total=Sum('amount')
-            )['total'] or 0
-            
-            dates.append(current_date.strftime('%Y-%m-%d'))
-            income_trend.append(float(income))
-            expense_trend.append(float(expense))
-            
-            current_date += timedelta(days=1)
-
-        # Lấy dữ liệu cho biểu đồ phân bố chi tiêu
-        expense_categories = []
-        expense_amounts = []
-        
-        expense_data = Transaction.objects.filter(
-            user=request.user,
-            transaction_type='expense',
-            date__range=[start_date, end_date]
-        ).values('category__name').annotate(
-            total=Sum('amount')
-        ).order_by('-total')
-        
-        for item in expense_data:
-            if item['category__name']:
-                expense_categories.append(item['category__name'])
-                expense_amounts.append(float(item['total']))
-
-        # Lấy dữ liệu cho biểu đồ phân bố thu nhập
-        income_categories = []
-        income_amounts = []
-        
-        income_data = Transaction.objects.filter(
-            user=request.user,
-            transaction_type='income',
-            date__range=[start_date, end_date]
-        ).values('category__name').annotate(
-            total=Sum('amount')
-        ).order_by('-total')
-        
-        for item in income_data:
-            if item['category__name']:
-                income_categories.append(item['category__name'])
-                income_amounts.append(float(item['total']))
-
-        # Tính tổng thu nhập và chi tiêu
-        total_income = sum(income_trend)
-        total_expense = sum(expense_trend)
-        balance = total_income - total_expense
-
         context = {
-            'period': period,
-            'start_date': start_date,
-            'end_date': end_date,
-            'transactions_by_card': transactions_by_card,
-            'dates': dates,
-            'income_trend': income_trend,
-            'expense_trend': expense_trend,
-            'expense_categories': expense_categories,
-            'expense_amounts': expense_amounts,
-            'income_categories': income_categories,
-            'income_amounts': income_amounts,
-            'income_data': total_income,
-            'expense_data': total_expense,
-            'balance': balance,
+            'goal': goal,
+            'cards': cards,
+            'remaining_amount': goal.target_amount - goal.current_amount
         }
-        
-        return render(request, 'finance_app/statistics.html', context)
-
-class CustomLogoutView(View):
-    def get(self, request):
-        logout(request)
-        return render(request, 'registration/logout.html')
-
-    def post(self, request):
-        logout(request)
-        return render(request, 'registration/logout.html')
-
-class ProfileView(LoginRequiredMixin, TemplateView):
-    template_name = 'registration/profile.html'
+        return render(request, 'finance_app/goal_contribution.html', context)
     
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        profile = UserProfile.objects.get_or_create(user=self.request.user)[0]
-        context['user_profile'] = profile
-        context['form'] = UserProfileForm(instance=profile)
-        return context
-
-    def post(self, request, *args, **kwargs):
-        profile = UserProfile.objects.get(user=request.user)
-        form = UserProfileForm(request.POST, request.FILES, instance=profile)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Cập nhật ảnh đại diện thành công!')
-        else:
-            messages.error(request, 'Có lỗi xảy ra khi cập nhật ảnh đại diện.')
-        return redirect('profile')
-
-class LandingView(TemplateView):
-    template_name = 'finance_app/landing.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Thêm thông tin thống kê cơ bản
-        context['total_users'] = User.objects.count()
-        context['total_transactions'] = Transaction.objects.count()
-        context['total_goals'] = Goal.objects.count()
-        return context
-
-class TransactionListView(LoginRequiredMixin, ListView):
-    model = Transaction
-    template_name = 'finance_app/transaction_list.html'
-    context_object_name = 'transactions'
-    paginate_by = 10
-    
-    def get_queryset(self):
-        queryset = Transaction.objects.filter(user=self.request.user)
-        
-        # Filter theo loại giao dịch
-        transaction_type = self.request.GET.get('type')
-        if transaction_type:
-            queryset = queryset.filter(transaction_type=transaction_type)
-        
-        # Filter theo danh mục
-        category = self.request.GET.get('category')
-        if category:
-            queryset = queryset.filter(category_id=category)
-        
-        # Filter theo thẻ/ví
-        card = self.request.GET.get('card')
-        if card:
-            queryset = queryset.filter(card_id=card)
-        
-        # Filter theo khoảng thời gian
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
-        if start_date:
-            queryset = queryset.filter(date__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(date__lte=end_date)
-        
-        # Tìm kiếm theo ghi chú hoặc số tiền
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(note__icontains=search) |
-                Q(amount__icontains=search)
-            )
-        
-        # Sắp xếp
-        sort = self.request.GET.get('sort', '-date')
-        queryset = queryset.order_by(sort)
-        
-        return queryset
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.filter(user=self.request.user)
-        context['cards'] = Card.objects.filter(user=self.request.user)
-        return context
-
-class TransactionDetailView(LoginRequiredMixin, DetailView):
-    model = Transaction
-    template_name = 'finance_app/transaction_detail.html'
-    context_object_name = 'transaction'
-
-class TransactionCreateView(LoginRequiredMixin, CreateView):
-    model = Transaction
-    form_class = TransactionForm
-    template_name = 'finance_app/transaction_form.html'
-    success_url = reverse_lazy('finance_app:transaction-list')
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-
-    def form_valid(self, form):
-        form.instance.user = self.request.user
-        response = super().form_valid(form)
-        create_notification(
-            self.request.user,
-            'Giao dịch mới',
-            f'Bạn đã tạo một giao dịch mới: {form.instance.note} - {form.instance.amount} VND ({form.instance.get_transaction_type_display()})',
-            'transaction'
-        )
-        return response
-
-class TransactionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    model = Transaction
-    form_class = TransactionForm
-    template_name = 'finance_app/transaction_form.html'
-    success_url = reverse_lazy('finance_app:transaction-list')
-
-    def test_func(self):
-        transaction = self.get_object()
-        return transaction.user == self.request.user
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Sửa giao dịch'
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        create_notification(
-            self.request.user,
-            'Cập nhật giao dịch',
-            f'Bạn đã cập nhật giao dịch: {form.instance.note} - {form.instance.amount} VND',
-            'transaction'
-        )
-        return response
-
-class TransactionDeleteView(LoginRequiredMixin, DeleteView):
-    model = Transaction
-    template_name = 'finance_app/transaction_confirm_delete.html'
-    success_url = reverse_lazy('finance_app:transaction-list')
-
-    def delete(self, request, *args, **kwargs):
-        transaction = self.get_object()
-        create_notification(
-            self.request.user,
-            'Xóa giao dịch',
-            f'Bạn đã xóa giao dịch: {transaction.note} - {transaction.amount} VND',
-            'transaction'
-        )
-        return super().delete(request, *args, **kwargs)
-
-class CardListView(LoginRequiredMixin, ListView):
-    model = Card
-    template_name = 'finance_app/card_list.html'
-    context_object_name = 'cards'
-    
-    def get_queryset(self):
-        return Card.objects.filter(user=self.request.user)
-
-class GoalContributeView(LoginRequiredMixin, View):
     def post(self, request, pk):
         goal = get_object_or_404(Goal, pk=pk, user=request.user)
         card = get_object_or_404(Card, pk=request.POST.get('card'), user=request.user)
@@ -1337,10 +1160,12 @@ class GoalContributeView(LoginRequiredMixin, View):
             # Chuyển đổi số tiền sang Decimal
             amount = Decimal(request.POST.get('amount', '0'))
             if amount <= Decimal('0'):
-                raise ValueError("Số tiền phải lớn hơn 0")
+                raise ValidationError("Số tiền phải lớn hơn 0")
                 
-            if amount > card.balance:
-                raise ValueError("Số tiền vượt quá số dư trong thẻ/ví")
+            # Kiểm tra số dư
+            if card.balance < amount:
+                messages.error(request, f'Số dư trong thẻ/ví không đủ. Số dư hiện tại: {card.balance:,.0f} VNĐ')
+                return redirect('finance_app:goal-contribute', pk=pk)
             
             # Tìm hoặc tạo danh mục Tiết kiệm
             saving_category, created = Category.objects.get_or_create(
@@ -1380,6 +1205,8 @@ class GoalContributeView(LoginRequiredMixin, View):
             
             # Cập nhật số dư thẻ/ví
             card.balance -= amount
+            if card.balance < 0:
+                card.balance = 0
             card.save()
             
             # Cập nhật số tiền đã tiết kiệm của mục tiêu
@@ -1394,7 +1221,7 @@ class GoalContributeView(LoginRequiredMixin, View):
                 f'Số dư còn lại trong {card.name}: {card.balance:,.0f} đ'
             )
             
-        except ValueError as e:
+        except ValidationError as e:
             messages.error(request, str(e))
         except Exception as e:
             messages.error(request, f'Có lỗi xảy ra: {str(e)}')
@@ -1443,8 +1270,8 @@ class NotificationListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Đánh dấu tất cả thông báo là đã đọc
-        self.get_queryset().update(is_read=True)
+        # Không đánh dấu tất cả thông báo là đã đọc để dễ debug
+        # self.get_queryset().update(is_read=True)
         return context
 
 @login_required
@@ -1491,14 +1318,260 @@ def create_notification(users, title, message, notification_type='system'):
     # Đảm bảo users là list (dù là 1 user hay nhiều user)
     if not isinstance(users, (list, tuple)):
         users = [users]
+    
+    print(f"Đang tạo thông báo: {title} - {message}")
+    print(f"Người nhận: {[user.username for user in users]}")
+    
     for user in users:
         try:
-            Notification.objects.create(
+            notification = Notification.objects.create(
                 user=user,
                 title=title,
                 message=message,
                 notification_type=notification_type,
                 is_read=False
             )
+            print(f"Đã tạo thông báo ID: {notification.id} cho {user.username}")
         except Exception as e:
-            print(f"Lỗi khi tạo thông báo: {str(e)}")
+            print(f"Lỗi khi tạo thông báo cho {user.username}: {str(e)}")
+    
+    print("Hoàn thành tạo thông báo")
+
+class ProfileView(LoginRequiredMixin, TemplateView):
+    template_name = 'finance_app/profile.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user'] = self.request.user
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        email = request.POST.get('email')
+        
+        if first_name:
+            user.first_name = first_name
+        if last_name:
+            user.last_name = last_name
+        if email:
+            user.email = email
+            
+        user.save()
+        messages.success(request, 'Thông tin cá nhân đã được cập nhật thành công!')
+        return redirect('finance_app:profile')
+
+class TransactionListView(LoginRequiredMixin, ListView):
+    model = Transaction
+    template_name = 'finance_app/transaction_list.html'
+    context_object_name = 'transactions'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        queryset = Transaction.objects.filter(user=self.request.user).order_by('-date', '-created_at')
+        
+        # Lọc theo loại giao dịch
+        transaction_type = self.request.GET.get('type')
+        if transaction_type in ['income', 'expense']:
+            queryset = queryset.filter(transaction_type=transaction_type)
+            
+        # Lọc theo danh mục
+        category_id = self.request.GET.get('category')
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+            
+        # Lọc theo thẻ/ví
+        card_id = self.request.GET.get('card')
+        if card_id:
+            queryset = queryset.filter(card_id=card_id)
+            
+        # Lọc theo khoảng thời gian
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+            
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['categories'] = Category.objects.filter(user=self.request.user)
+        context['cards'] = Card.objects.filter(user=self.request.user)
+        
+        # Thêm các tham số lọc vào context
+        context['selected_type'] = self.request.GET.get('type', '')
+        context['selected_category'] = self.request.GET.get('category', '')
+        context['selected_card'] = self.request.GET.get('card', '')
+        context['start_date'] = self.request.GET.get('start_date', '')
+        context['end_date'] = self.request.GET.get('end_date', '')
+        
+        return context
+
+class TransactionCreateView(LoginRequiredMixin, CreateView):
+    model = Transaction
+    form_class = TransactionForm
+    template_name = 'finance_app/transaction_form.html'
+    success_url = reverse_lazy('finance_app:transaction-list')
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        response = super().form_valid(form)
+        
+        # Cập nhật số dư thẻ/ví
+        card = form.instance.card
+        if form.instance.transaction_type == 'income':
+            card.balance += form.instance.amount
+        else:  # expense
+            card.balance -= form.instance.amount
+            if card.balance < 0:
+                card.balance = 0
+        card.save()
+        
+        # Tạo thông báo
+        transaction_type = 'Thu nhập' if form.instance.transaction_type == 'income' else 'Chi tiêu'
+        create_notification(
+            self.request.user,
+            f'Giao dịch {transaction_type} mới',
+            f'Bạn đã tạo một giao dịch {transaction_type.lower()}: {form.instance.amount:,.0f} VNĐ - {form.instance.category.name}',
+            'transaction'
+        )
+        
+        return response
+
+class TransactionDetailView(LoginRequiredMixin, DetailView):
+    model = Transaction
+    template_name = 'finance_app/transaction_detail.html'
+    context_object_name = 'transaction'
+    
+    def get_queryset(self):
+        return Transaction.objects.filter(user=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        transaction = self.object
+        
+        # Thêm thông tin bổ sung về giao dịch
+        context['transaction_type_display'] = transaction.get_transaction_type_display()
+        
+        # Lấy các giao dịch liên quan (cùng danh mục)
+        related_transactions = Transaction.objects.filter(
+            user=self.request.user,
+            category=transaction.category
+        ).exclude(id=transaction.id).order_by('-date')[:5]
+        
+        context['related_transactions'] = related_transactions
+        
+        return context
+
+class TransactionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Transaction
+    form_class = TransactionForm
+    template_name = 'finance_app/transaction_form.html'
+    success_url = reverse_lazy('finance_app:transaction-list')
+    
+    def test_func(self):
+        transaction = self.get_object()
+        return transaction.user == self.request.user
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
+    def form_valid(self, form):
+        # Lấy thông tin giao dịch cũ trước khi cập nhật
+        old_transaction = self.get_object()
+        old_amount = old_transaction.amount
+        old_type = old_transaction.transaction_type
+        old_card = old_transaction.card
+        
+        # Hoàn trả số dư cho thẻ/ví cũ
+        if old_type == 'income':
+            old_card.balance -= old_amount
+        else:  # expense
+            old_card.balance += old_amount
+        old_card.save()
+        
+        # Cập nhật giao dịch
+        response = super().form_valid(form)
+        
+        # Cập nhật số dư thẻ/ví mới
+        new_card = form.instance.card
+        if form.instance.transaction_type == 'income':
+            new_card.balance += form.instance.amount
+        else:  # expense
+            new_card.balance -= form.instance.amount
+            if new_card.balance < 0:
+                new_card.balance = 0
+        new_card.save()
+        
+        # Tạo thông báo
+        transaction_type = 'Thu nhập' if form.instance.transaction_type == 'income' else 'Chi tiêu'
+        create_notification(
+            self.request.user,
+            f'Cập nhật giao dịch {transaction_type}',
+            f'Bạn đã cập nhật giao dịch {transaction_type.lower()}: {form.instance.amount:,.0f} VNĐ - {form.instance.category.name}',
+            'transaction'
+        )
+        
+        return response
+
+class TransactionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Transaction
+    template_name = 'finance_app/transaction_confirm_delete.html'
+    success_url = reverse_lazy('finance_app:transaction-list')
+    
+    def test_func(self):
+        transaction = self.get_object()
+        return transaction.user == self.request.user
+    
+    def delete(self, request, *args, **kwargs):
+        transaction = self.get_object()
+        
+        try:
+            # Lấy thông tin giao dịch trước khi xóa
+            amount = transaction.amount
+            transaction_type = transaction.transaction_type
+            category_name = transaction.category.name if transaction.category else "Không danh mục"
+            card = transaction.card
+            transaction_date = transaction.date
+            
+            # Thêm lệnh print để debug
+            print(f"Đang tạo thông báo xóa giao dịch: {amount} VND - {category_name}")
+            
+            with transaction.atomic():
+                # Cập nhật số dư thẻ/ví
+                if transaction_type == 'income':
+                    card.balance -= amount
+                    if card.balance < 0:
+                        card.balance = 0
+                else:  # expense
+                    card.balance += amount
+                card.save()
+                
+                # Tạo thông báo
+                transaction_type_display = 'Thu nhập' if transaction_type == 'income' else 'Chi tiêu'
+                create_notification(
+                    request.user,
+                    f'Xóa giao dịch {transaction_type_display}',
+                    f'Giao dịch {transaction_type_display.lower()} ({amount:,.0f} VNĐ - {category_name}) đã được xóa',
+                    'transaction'
+                )
+                
+                # Thêm lệnh print để xác nhận thông báo đã được tạo
+                print("Đã tạo thông báo xóa giao dịch")
+                
+                return super().delete(request, *args, **kwargs)
+                
+        except Exception as e:
+            print(f"Lỗi khi xóa giao dịch: {str(e)}")
+            messages.error(request, f'Có lỗi xảy ra: {str(e)}')
+            return redirect('finance_app:transaction-list')
