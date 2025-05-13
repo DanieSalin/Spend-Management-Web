@@ -23,7 +23,7 @@ urlpatterns = [
     # Trang chủ và Dashboard
     path('', views.LandingView.as_view(), name='landing'),  # Trang giới thiệu
     path('home/', views.HomeView.as_view(), name='index'),  # Trang chủ sau khi đăng nhập
-    path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    # path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     
     # Quản lý danh mục
     path('categories/', views.CategoryListView.as_view(), name='category-list'),
