@@ -1618,3 +1618,18 @@ class TransactionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView)
             print(f"Lỗi khi xóa giao dịch: {str(e)}")
             messages.error(request, f'Có lỗi xảy ra: {str(e)}')
             return redirect('finance_app:transaction-list')
+        
+
+# Trang đăng xuất tùy chỉnh
+class CustomLogoutView(View):
+    def get(self, request, *args, **kwargs):
+        # Đăng xuất người dùng
+        logout(request)
+        # Chuyển hướng đến trang landing
+        return redirect('finance_app:landing')
+    
+    def post(self, request, *args, **kwargs):
+        # Đăng xuất người dùng khi sử dụng phương thức POST
+        logout(request)
+        # Chuyển hướng đến trang landing
+        return redirect('finance_app:landing')

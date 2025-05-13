@@ -923,10 +923,13 @@
                         Đổi mật khẩu
                     </a>
                     <div class="profile-divider"></div>
-                    <a href="{% url 'logout' %}" class="profile-menu-item text-danger">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Đăng xuất
-                    </a>
+                    <form method="post" action="{% url 'logout' %}" class="m-0 p-0">
+                        {% csrf_token %}
+                        <button type="submit" class="profile-menu-item text-danger border-0 bg-transparent w-100 text-start">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Đăng xuất
+                        </button>
+                    </form>
                 </div>
             </div>
             {% endif %}
