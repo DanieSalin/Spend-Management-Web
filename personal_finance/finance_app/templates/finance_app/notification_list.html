@@ -28,10 +28,10 @@
                                     </div>
                                     <div class="flex-grow-1 ms-3">
                                         <h5 class="mb-1 {% if not notification.is_read %}fw-bold{% endif %}">
-                                            {{ notification.title }}
+                                            {{ notification.title }} <small class="text-muted">(ID: {{ notification.id }})</small>
                                         </h5>
                                         <p class="mb-1">{{ notification.message }}</p>
-                                        <small class="text-muted">{{ notification.created_at|date:"d/m/Y H:i" }}</small>
+                                        <small class="text-muted">{{ notification.created_at|date:"d/m/Y H:i" }} - Người dùng: {{ notification.user.username }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -78,4 +78,4 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}  

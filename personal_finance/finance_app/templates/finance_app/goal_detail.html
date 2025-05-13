@@ -1,7 +1,82 @@
 {% extends 'finance_app/base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Chi tiết mục tiêu{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress {
+        height: 20px;
+        border-radius: 10px;
+    }
+    .goal-info-card {
+        border-left: 5px solid #28a745;
+    }
+    .transaction-card {
+        transition: transform 0.2s;
+    }
+    .transaction-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .stat-box {
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .stat-box h4 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        word-break: break-word;
+    }
+    .stat-box p {
+        margin: 5px 0 0;
+        color: #6c757d;
+    }
+    .bg-light-success {
+        background-color: rgba(40, 167, 69, 0.1);
+    }
+    .bg-light-danger {
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+    .bg-light-warning {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+    .bg-light-info {
+        background-color: rgba(23, 162, 184, 0.1);
+    }
+    .pagination {
+        justify-content: center;
+        margin-top: 20px;
+    }
+    .stats-row {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+    .stats-col {
+        flex: 1;
+        min-width: 0; /* Cho phép co lại khi cần thiết */
+        padding: 0 5px;
+    }
+    @media (max-width: 767px) {
+        .stats-row {
+            flex-wrap: wrap;
+        }
+        .stats-col {
+            flex: 0 0 50%;
+            margin-bottom: 10px;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -10,29 +85,65 @@
             <h2 class="mb-4">
                 <i class="fas fa-bullseye text-primary me-2"></i>{{ goal.name }}
             </h2>
-            <a href="{% url 'finance_app:goal-list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Quay lại
-            </a>
+            <div class="d-flex">
+                <a href="{% url 'finance_app:goal-list' %}" class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-arrow-left me-2"></i>Quay lại
+                </a>
+                <a href="{% url 'finance_app:goal-contribute' goal.id %}" class="btn btn-success me-2">
+                    <i class="fas fa-plus me-2"></i>Thêm tiền
+                </a>
+                <a href="{% url 'finance_app:goal-update' goal.id %}" class="btn btn-primary">
+                    <i class="fas fa-edit me-2"></i>Chỉnh sửa
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thống kê nhanh -->
+    <div class="stats-row mb-4">
+        <div class="stats-col">
+            <div class="stat-box bg-light-success">
+                <p>Đã tiết kiệm</p>
+                <h4>{{ goal.current_amount|intcomma }} VNĐ</h4>
+            </div>
+        </div>
+        <div class="stats-col">
+            <div class="stat-box bg-light-danger">
+                <p>Còn thiếu</p>
+                <h4>{{ remaining_amount|intcomma }} VNĐ</h4>
+            </div>
+        </div>
+        <div class="stats-col">
+            <div class="stat-box bg-light-warning">
+                <p>Tiến độ</p>
+                <h4>{{ goal.progress_percentage }}%</h4>
+            </div>
+        </div>
+        <div class="stats-col">
+            <div class="stat-box bg-light-info">
+                <p>Thời gian còn lại</p>
+                <h4>{{ days_left }} ngày</h4>
+            </div>
         </div>
     </div>
 
     <div class="row">
         <!-- Thông tin mục tiêu -->
         <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100">
+            <div class="card shadow-sm h-100 goal-info-card">
                 <div class="card-body">
                     <h5 class="card-title mb-4">Thông tin mục tiêu</h5>
                     <div class="mb-3">
                         <label class="text-muted">Số tiền mục tiêu:</label>
-                        <div class="h5">{{ goal.target_amount|floatformat:0 }} VNĐ</div>
+                        <div class="h5">{{ goal.target_amount|intcomma }} VNĐ</div>
                     </div>
                     <div class="mb-3">
                         <label class="text-muted">Đã tiết kiệm:</label>
-                        <div class="h5">{{ goal.current_amount|floatformat:0 }} VNĐ</div>
+                        <div class="h5">{{ goal.current_amount|intcomma }} VNĐ</div>
                     </div>
                     <div class="mb-3">
                         <label class="text-muted">Còn thiếu:</label>
-                        <div class="h5">{{ remaining_amount|floatformat:0 }} VNĐ</div>
+                        <div class="h5">{{ remaining_amount|intcomma }} VNĐ</div>
                     </div>
                     <div class="mb-3">
                         <label class="text-muted">Tiến độ:</label>
@@ -63,6 +174,12 @@
                             {% endif %}
                         </div>
                     </div>
+                    {% if goal.description %}
+                    <div class="mb-3">
+                        <label class="text-muted">Mô tả:</label>
+                        <div>{{ goal.description }}</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -70,10 +187,13 @@
         <!-- Lịch sử đóng góp -->
         <div class="col-md-8 mb-4">
             <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Lịch sử đóng góp</h5>
+                    <span class="badge bg-primary">Tổng: {{ total_contributions }} lần</span>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title mb-4">Hoạt động gần đây</h5>
                     <div class="table-responsive">
-                        <table class="table">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th>Thời gian</th>
@@ -84,20 +204,79 @@
                             </thead>
                             <tbody>
                                 {% for transaction in transactions %}
-                                <tr>
+                                <tr class="transaction-card">
                                     <td>{{ transaction.date|date:"d/m/Y" }}</td>
-                                    <td>{{ transaction.amount|floatformat:0 }} VNĐ</td>
+                                    <td class="text-success fw-bold">{{ transaction.amount|intcomma }} VNĐ</td>
                                     <td>{{ transaction.card.name }}</td>
-                                    <td>{{ transaction.note }}</td>
+                                    <td>{{ transaction.note|default:"-" }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center">Chưa có hoạt động nào.</td>
+                                    <td colspan="4" class="text-center">Chưa có hoạt động đóng góp nào.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Phân trang -->
+                    {% if transactions.has_other_pages %}
+                    <nav aria-label="Phân trang">
+                        <ul class="pagination">
+                            {% if transactions.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1" aria-label="Đầu tiên">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transactions.previous_page_number }}" aria-label="Trước">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">&laquo;&laquo;</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">&laquo;</span>
+                            </li>
+                            {% endif %}
+                            
+                            {% for i in transactions.paginator.page_range %}
+                                {% if transactions.number == i %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ i }}</span>
+                                </li>
+                                {% elif i > transactions.number|add:'-3' and i < transactions.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if transactions.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transactions.next_page_number }}" aria-label="Tiếp">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transactions.paginator.num_pages }}" aria-label="Cuối">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">&raquo;</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">&raquo;&raquo;</span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
                 </div>
             </div>
         </div>

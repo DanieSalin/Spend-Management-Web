@@ -8,7 +8,7 @@ urlpatterns = [
     # Đăng ký và đăng nhập
     path('register/', views.RegisterView.as_view(), name='register'),
     path('login/', views.CustomLoginView.as_view(), name='login'),
-    path('logout/', views.CustomLogoutView.as_view(), name='logout'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
     
     # Quản lý tài khoản
     path('profile/', views.ProfileView.as_view(), name='profile'),
@@ -61,7 +61,7 @@ urlpatterns = [
     path('transactions/<int:pk>/delete/', views.TransactionDeleteView.as_view(), name='transaction-delete'),
     
     # Thống kê
-    path('statistics/', views.StatisticsView.as_view(), name='statistics'),
+    path('statistics/', views.statistics_view, name='statistics'),
     path('api/monthly-trend/', views.get_monthly_trend, name='api-monthly-trend'),
     
     # Thông báo

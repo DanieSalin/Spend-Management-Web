@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
-from finance_app.views import ProfileView
+from finance_app import views
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -25,7 +25,7 @@ urlpatterns = [
     path('django-admin/', admin.site.urls),
     path('', include('finance_app.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
-    path('accounts/profile/', ProfileView.as_view(), name='profile'),
+    path('accounts/profile/', views.ProfileView.as_view(), name='profile'),
     path('accounts/password_change/', 
          auth_views.PasswordChangeView.as_view(
              template_name='registration/password_change.html',

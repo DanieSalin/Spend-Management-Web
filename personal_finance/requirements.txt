@@ -1,4 +1,6 @@
 Django==5.2
 django-crispy-forms==2.1
 crispy-bootstrap5==2023.10
-python-dotenv==1.0.0 
+python-dotenv==1.0.0
+python-dateutil
+Pillow 

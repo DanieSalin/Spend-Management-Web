@@ -173,6 +173,11 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Tự động làm mới trang sau mỗi 60 giây
+    setTimeout(function() {
+        location.reload();
+    }, 60000);
+
     // Hiển thị/ẩn trường ngày tùy chọn
     document.getElementById('period').addEventListener('change', function() {
         const customDateRange = document.querySelectorAll('.custom-date-range');

@@ -15,8 +15,9 @@
                 <div class="card-body">
                     {% if messages %}
                         {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }}" role="alert">
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
                                 {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
@@ -28,6 +29,10 @@
                         <div class="d-flex justify-content-between mb-2">
                             <span>Mục tiêu:</span>
                             <span>{{ goal.target_amount|intcomma }} VNĐ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Số tiền còn thiếu:</span>
+                            <span class="text-danger">{{ goal.remaining_amount|intcomma }} VNĐ</span>
                         </div>
                         <div class="progress">
                             <div class="progress-bar {% if goal.progress_percentage >= 100 %}bg-success{% else %}bg-primary{% endif %}" 
@@ -41,7 +46,7 @@
                         </div>
                     </div>
 
-                    <form method="post">
+                    <form method="post" id="contributionForm">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="id_card" class="form-label">Chọn thẻ/ví:</label>
@@ -53,6 +58,12 @@
                                 </option>
                                 {% endfor %}
                             </select>
+                            <div class="invalid-feedback" id="cardError"></div>
+                            {% if form.card.errors %}
+                                <div class="text-danger small">
+                                    {{ form.card.errors.0 }}
+                                </div>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="id_amount" class="form-label">Số tiền góp:</label>
@@ -60,12 +71,22 @@
                             <div class="form-text">
                                 Số tiền tối thiểu: 1,000 VNĐ
                             </div>
+                            <div class="invalid-feedback" id="amountError"></div>
+                            {% if form.amount.errors %}
+                                <div class="text-danger small">
+                                    {{ form.amount.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_note" class="form-label">Ghi chú (không bắt buộc):</label>
+                            <textarea name="note" id="id_note" class="form-control" rows="2"></textarea>
                         </div>
                         <div class="d-flex justify-content-between">
                             <a href="{% url 'finance_app:goal-list' %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Quay lại
                             </a>
-                            <button type="submit" class="btn btn-success">
+                            <button type="submit" class="btn btn-success" id="submitBtn">
                                 <i class="fas fa-check"></i> Xác nhận
                             </button>
                         </div>
@@ -80,26 +101,67 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('contributionForm');
         const cardSelect = document.getElementById('id_card');
         const amountInput = document.getElementById('id_amount');
+        const submitBtn = document.getElementById('submitBtn');
+        const cardError = document.getElementById('cardError');
+        const amountError = document.getElementById('amountError');
         const maxAmount = {{ goal.remaining_amount }};
+
+        function validateForm() {
+            let isValid = true;
+            
+            // Reset error messages
+            cardError.textContent = '';
+            amountError.textContent = '';
+            cardSelect.classList.remove('is-invalid');
+            amountInput.classList.remove('is-invalid');
+
+            // Validate card selection
+            if (!cardSelect.value) {
+                cardError.textContent = 'Vui lòng chọn thẻ/ví';
+                cardSelect.classList.add('is-invalid');
+                isValid = false;
+            }
+
+            // Validate amount
+            const amount = parseFloat(amountInput.value);
+            const selectedOption = cardSelect.options[cardSelect.selectedIndex];
+            const cardBalance = selectedOption ? parseFloat(selectedOption.dataset.balance) : 0;
+
+            if (isNaN(amount) || amount < 1000) {
+                amountError.textContent = 'Số tiền tối thiểu là 1,000 VNĐ';
+                amountInput.classList.add('is-invalid');
+                isValid = false;
+            } else if (amount > cardBalance) {
+                amountError.textContent = `Số tiền không được vượt quá số dư (${cardBalance.toLocaleString()} VNĐ)`;
+                amountInput.classList.add('is-invalid');
+                isValid = false;
+            } else if (amount > maxAmount) {
+                amountError.textContent = `Số tiền không được vượt quá số tiền còn thiếu (${maxAmount.toLocaleString()} VNĐ)`;
+                amountInput.classList.add('is-invalid');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+            }
+        });
 
         cardSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const cardBalance = parseFloat(selectedOption.dataset.balance);
             amountInput.max = Math.min(cardBalance, maxAmount);
+            validateForm();
         });
 
         amountInput.addEventListener('input', function() {
-            const amount = parseFloat(this.value);
-            const cardBalance = parseFloat(cardSelect.options[cardSelect.selectedIndex].dataset.balance);
-            const maxAllowed = Math.min(cardBalance, maxAmount);
-
-            if (amount > maxAllowed) {
-                this.setCustomValidity(`Số tiền không được vượt quá ${maxAllowed.toLocaleString()} VNĐ`);
-            } else {
-                this.setCustomValidity('');
-            }
+            validateForm();
         });
     });
 </script>
