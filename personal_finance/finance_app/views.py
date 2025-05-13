@@ -1216,7 +1216,7 @@ class GoalContributionView(LoginRequiredMixin, View):
             messages.success(
                 request, 
                 f'Đã thêm {amount:,.0f} đ vào mục tiêu {goal.name}. '
-                f'Số dư còn lại trong {card.name}: {card.balance:,.0f} đ'
+                f'Số dư còn lại trong tài khoản {card.name}: {card.balance:,.0f} VNĐ'
             )
             
         except ValidationError as e:
