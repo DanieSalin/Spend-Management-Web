@@ -454,14 +454,12 @@ class GoalUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        # Tạo thông báo trong hệ thống
         create_notification(
             self.request.user,
             'Cập nhật mục tiêu',
             f'Bạn đã cập nhật mục tiêu: {form.instance.name}',
             'goal'
         )
-        # Thêm dòng này để hiển thị thông báo thành công
         messages.success(self.request, f'Đã cập nhật mục tiêu {form.instance.name} thành công')
         return response
 
@@ -1369,7 +1367,7 @@ class TransactionListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = Transaction.objects.filter(user=self.request.user).order_by('-date', '-created_at')
+        queryset = Transaction.objects.filter(user=self.request.user)
         
         # Lọc theo loại giao dịch
         transaction_type = self.request.GET.get('type')
@@ -1393,6 +1391,27 @@ class TransactionListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(date__gte=start_date)
         if end_date:
             queryset = queryset.filter(date__lte=end_date)
+        
+        # Tìm kiếm theo ghi chú hoặc số tiền
+        search = self.request.GET.get('search')
+        if search:
+            # Tìm kiếm theo ghi chú
+            try:
+                # Thử chuyển đổi search thành số để tìm theo amount
+                amount = float(search.replace(',', ''))
+                queryset = queryset.filter(
+                    Q(note__icontains=search) | Q(amount=amount)
+                )
+            except (ValueError, TypeError):
+                # Nếu không chuyển đổi được, chỉ tìm theo ghi chú
+                queryset = queryset.filter(note__icontains=search)
+        
+        # Sắp xếp kết quả
+        sort_by = self.request.GET.get('sort', '-date')
+        if sort_by in ['-date', 'date', '-amount', 'amount']:
+            queryset = queryset.order_by(sort_by, '-created_at')
+        else:
+            queryset = queryset.order_by('-date', '-created_at')
             
         return queryset
     
@@ -1407,6 +1426,8 @@ class TransactionListView(LoginRequiredMixin, ListView):
         context['selected_card'] = self.request.GET.get('card', '')
         context['start_date'] = self.request.GET.get('start_date', '')
         context['end_date'] = self.request.GET.get('end_date', '')
+        context['search'] = self.request.GET.get('search', '')
+        context['sort'] = self.request.GET.get('sort', '-date')
         
         return context
 
