@@ -8,8 +8,8 @@ urlpatterns = [
     # Đăng ký và đăng nhập
     path('register/', views.RegisterView.as_view(), name='register'),
     path('login/', views.CustomLoginView.as_view(), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
-    
+    # path('logout/', auth_views.LogoutView.as_view(next_page='/', http_method_names=['get', 'post']), name='logout'),
+    path('logout/', views.CustomLogoutView.as_view(), name='logout'),
     # Quản lý tài khoản
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('password_change/', auth_views.PasswordChangeView.as_view(
@@ -19,7 +19,8 @@ urlpatterns = [
     path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(
         template_name='registration/password_change_done.html'
     ), name='password_change_done'),
-    
+    # Thêm dòng này vào urlpatterns trong personal_finance/urls.py
+    path('accounts/logout/', views.CustomLogoutView.as_view(), name='custom_logout'),
     # Trang chủ và Dashboard
     path('', views.LandingView.as_view(), name='landing'),  # Trang giới thiệu
     path('home/', views.HomeView.as_view(), name='index'),  # Trang chủ sau khi đăng nhập
