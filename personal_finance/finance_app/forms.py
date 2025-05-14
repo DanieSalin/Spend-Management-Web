@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
-from .models import Category, Card, Goal, Budget, Transaction, GoalContribution, UserProfile
+from .models import Category, Card, Goal, Budget, Transaction, GoalContribution, UserProfile, GoalTransaction
 
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
@@ -276,6 +276,28 @@ class CardForm(forms.ModelForm):
             'expiry_date': 'Ngày hết hạn (tùy chọn)',
         }
 
+    def clean_card_number(self):
+        card_number = self.cleaned_data.get('card_number')
+        card_type = self.cleaned_data.get('card_type')
+        
+        if card_number:
+            # Loại bỏ khoảng trắng và dấu gạch ngang
+            card_number = card_number.replace(' ', '').replace('-', '')
+            
+            # Kiểm tra xem có phải là số không
+            if not card_number.isdigit():
+                raise forms.ValidationError('Số thẻ chỉ được chứa các chữ số')
+            
+            # Kiểm tra độ dài dựa trên loại thẻ
+            if card_type == 'credit' and len(card_number) != 16:
+                raise forms.ValidationError('Số thẻ tín dụng phải có 16 chữ số')
+            elif card_type == 'debit' and len(card_number) != 16:
+                raise forms.ValidationError('Số thẻ ghi nợ phải có 16 chữ số')
+            elif card_type == 'ewallet' and len(card_number) != 11:
+                raise forms.ValidationError('Số ví điện tử phải có 11 chữ số')
+        
+        return card_number
+
 class GoalForm(forms.ModelForm):
     class Meta:
         model = Goal
@@ -369,17 +391,59 @@ class TransactionForm(forms.ModelForm):
 
 class GoalContributionForm(forms.ModelForm):
     class Meta:
-        model = GoalContribution
-        fields = ['amount', 'note', 'card']
+        model = GoalTransaction
+        fields = ['card', 'amount', 'note']
         widgets = {
-            'amount': forms.NumberInput(attrs={'class': 'form-control'}),
-            'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'card': forms.Select(attrs={'class': 'form-control'}),
+            'card': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1000',
+                'max': '999999999999',  # Giới hạn 12 chữ số
+                'step': 'any',
+                'placeholder': 'Nhập số tiền muốn góp'
+            }),
+            'note': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ghi chú (không bắt buộc)'
+            })
         }
-        
-    def __init__(self, user, *args, **kwargs):
+        labels = {
+            'card': 'Chọn thẻ/ví',
+            'amount': 'Số tiền góp',
+            'note': 'Ghi chú'
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.goal = kwargs.pop('goal', None)
         super().__init__(*args, **kwargs)
-        self.fields['card'].queryset = Card.objects.filter(user=user)
+        if self.user:
+            self.fields['card'].queryset = Card.objects.filter(user=self.user)
+            self.fields['card'].empty_label = '-- Chọn thẻ/ví --'
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if amount is None:
+            raise forms.ValidationError('Vui lòng nhập số tiền góp')
+            
+        if amount < 1000:
+            raise forms.ValidationError('Số tiền góp tối thiểu là 1,000 VNĐ')
+            
+        if len(str(int(amount))) > 12:
+            raise forms.ValidationError('Số tiền không được vượt quá 12 chữ số')
+            
+        if self.goal:
+            remaining = self.goal.target_amount - self.goal.current_amount
+            if amount > remaining:
+                raise forms.ValidationError(
+                    f'Số tiền góp không được vượt quá số tiền còn thiếu ({remaining:,.0f} VNĐ)'
+                )
+                
+            card = self.cleaned_data.get('card')
+            if card and amount > card.balance:
+                raise forms.ValidationError('Số dư không đủ để thực hiện giao dịch')
+                
+        return amount
 
 class UserProfileForm(forms.ModelForm):
     class Meta:
