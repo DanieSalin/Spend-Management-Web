@@ -1142,89 +1142,97 @@ def goal_contribute(request, pk):
 class GoalContributionView(LoginRequiredMixin, View):
     def get(self, request, pk):
         goal = get_object_or_404(Goal, pk=pk, user=request.user)
-        cards = Card.objects.filter(user=request.user)
+        form = GoalContributionForm(user=request.user, goal=goal)
         context = {
             'goal': goal,
-            'cards': cards,
+            'form': form,
             'remaining_amount': goal.target_amount - goal.current_amount
         }
         return render(request, 'finance_app/goal_contribution.html', context)
     
     def post(self, request, pk):
         goal = get_object_or_404(Goal, pk=pk, user=request.user)
-        card = get_object_or_404(Card, pk=request.POST.get('card'), user=request.user)
+        form = GoalContributionForm(user=request.user, goal=goal, data=request.POST)
         
-        try:
-            # Chuyển đổi số tiền sang Decimal
-            amount = Decimal(request.POST.get('amount', '0'))
-            if amount <= Decimal('0'):
-                raise ValidationError("Số tiền phải lớn hơn 0")
-                
-            # Kiểm tra số dư
-            if card.balance < amount:
-                messages.error(request, f'Số dư trong thẻ/ví không đủ. Số dư hiện tại: {card.balance:,.0f} VNĐ')
-                return redirect('finance_app:goal-contribute', pk=pk)
-            
-            # Tìm hoặc tạo danh mục Tiết kiệm
-            saving_category, created = Category.objects.get_or_create(
-                user=request.user,
-                name='Tiết kiệm',
-                defaults={
-                    'type': 'expense',
-                    'description': 'Danh mục cho các khoản tiết kiệm'
-                }
-            )
-            
-            # Tạo ghi chú
-            note = request.POST.get('note', '').strip()
-            if not note:
-                note = f'Thêm tiền vào mục tiêu {goal.name}'
-            
-            # Tạo giao dịch trừ tiền từ thẻ/ví
-            transaction = Transaction.objects.create(
-                user=request.user,
-                amount=amount,
-                transaction_type='expense',
-                card=card,
-                category=saving_category,
-                note=note,
-                date=timezone.now().date()
-            )
-            
-            # Lưu giao dịch mục tiêu
-            GoalTransaction.objects.create(
-                goal=goal,
-                user=request.user,
-                amount=amount,
-                card=card,
-                note=note,
-                date=timezone.now().date()
-            )
-            
-            # Cập nhật số dư thẻ/ví
-            card.balance -= amount
-            if card.balance < 0:
-                card.balance = 0
-            card.save()
-            
-            # Cập nhật số tiền đã tiết kiệm của mục tiêu
-            goal.current_amount += amount
-            if goal.current_amount >= goal.target_amount:
-                goal.status = 'completed'
-            goal.save()
-            
-            messages.success(
-                request, 
-                f'Đã thêm {amount:,.0f} đ vào mục tiêu {goal.name}. '
-                f'Số dư còn lại trong tài khoản {card.name}: {card.balance:,.0f} VNĐ'
-            )
-            
-        except ValidationError as e:
-            messages.error(request, str(e))
-        except Exception as e:
-            messages.error(request, f'Có lỗi xảy ra: {str(e)}')
-            
-        return redirect('finance_app:goal-list')
+        if form.is_valid():
+            expense_transaction = None
+            goal_transaction = None
+            try:
+                with transaction.atomic():
+                    # Lấy dữ liệu từ form
+                    amount = form.cleaned_data['amount']
+                    card = form.cleaned_data['card']
+                    note = form.cleaned_data['note']
+                    
+                    # Tìm hoặc tạo danh mục Tiết kiệm
+                    saving_category, created = Category.objects.get_or_create(
+                        user=request.user,
+                        name='Tiết kiệm',
+                        defaults={
+                            'type': 'expense',
+                            'description': 'Danh mục cho các khoản tiết kiệm'
+                        }
+                    )
+                    
+                    # Tạo giao dịch trừ tiền từ thẻ/ví
+                    expense_transaction = Transaction.objects.create(
+                        user=request.user,
+                        amount=amount,
+                        transaction_type='expense',
+                        card=card,
+                        category=saving_category,
+                        note=note or f'Thêm tiền vào mục tiêu {goal.name}',
+                        date=timezone.now().date()
+                    )
+                    
+                    # Lưu giao dịch mục tiêu
+                    goal_transaction = GoalTransaction.objects.create(
+                        goal=goal,
+                        user=request.user,
+                        amount=amount,
+                        card=card,
+                        note=note or f'Thêm tiền vào mục tiêu {goal.name}',
+                        date=timezone.now().date()
+                    )
+                    
+                    # Cập nhật số dư thẻ/ví
+                    card.balance -= amount
+                    if card.balance < 0:
+                        card.balance = 0
+                    card.save()
+                    
+                    # Cập nhật số tiền đã tiết kiệm của mục tiêu
+                    goal.current_amount += amount
+                    if goal.current_amount >= goal.target_amount:
+                        goal.status = 'completed'
+                    goal.save()
+                    
+                    messages.success(
+                        request, 
+                        f'Đã thêm {amount:,.0f} đ vào mục tiêu {goal.name}. '
+                        f'Số dư còn lại trong tài khoản {card.name}: {card.balance:,.0f} VNĐ'
+                    )
+                    
+                    return redirect('finance_app:goal-detail', pk=goal.pk)
+                    
+            except Exception as e:
+                # Nếu có lỗi, xóa các giao dịch đã tạo (nếu có)
+                if expense_transaction:
+                    expense_transaction.delete()
+                if goal_transaction:
+                    goal_transaction.delete()
+                messages.error(request, f'Có lỗi xảy ra: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{form.fields[field].label}: {error}')
+        
+        context = {
+            'goal': goal,
+            'form': form,
+            'remaining_amount': goal.target_amount - goal.current_amount
+        }
+        return render(request, 'finance_app/goal_contribution.html', context)
 
 @login_required
 @require_POST

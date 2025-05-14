@@ -15,10 +15,12 @@
                 <div class="card-body">
                     {% if messages %}
                         {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
+                            {% if message.tags != 'error' %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endif %}
                         {% endfor %}
                     {% endif %}
                     <div class="mb-4">
@@ -32,7 +34,7 @@
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span>Số tiền còn thiếu:</span>
-                            <span class="text-danger">{{ goal.remaining_amount|intcomma }} VNĐ</span>
+                            <span class="text-danger">{{ remaining_amount|intcomma }} VNĐ</span>
                         </div>
                         <div class="progress">
                             <div class="progress-bar {% if goal.progress_percentage >= 100 %}bg-success{% else %}bg-primary{% endif %}" 
@@ -49,41 +51,34 @@
                     <form method="post" id="contributionForm">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label for="id_card" class="form-label">Chọn thẻ/ví:</label>
-                            <select name="card" id="id_card" class="form-select" required>
-                                <option value="">-- Chọn thẻ/ví --</option>
-                                {% for card in cards %}
-                                <option value="{{ card.id }}" data-balance="{{ card.balance }}">
-                                    {{ card.name }} (Số dư: {{ card.balance|intcomma }} VNĐ)
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <div class="invalid-feedback" id="cardError"></div>
+                            <label for="{{ form.card.id_for_label }}" class="form-label">{{ form.card.label }}</label>
+                            {{ form.card }}
                             {% if form.card.errors %}
-                                <div class="text-danger small">
+                                <div class="alert alert-danger mt-2">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
                                     {{ form.card.errors.0 }}
                                 </div>
                             {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label for="id_amount" class="form-label">Số tiền góp:</label>
-                            <input type="number" name="amount" id="id_amount" class="form-control" required min="1000" step="1">
+                            <label for="{{ form.amount.id_for_label }}" class="form-label">Số tiền góp</label>
+                            {{ form.amount }}
                             <div class="form-text">
                                 Số tiền tối thiểu: 1,000 VNĐ
                             </div>
-                            <div class="invalid-feedback" id="amountError"></div>
                             {% if form.amount.errors %}
-                                <div class="text-danger small">
+                                <div class="alert alert-danger mt-2">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
                                     {{ form.amount.errors.0 }}
                                 </div>
                             {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label for="id_note" class="form-label">Ghi chú (không bắt buộc):</label>
-                            <textarea name="note" id="id_note" class="form-control" rows="2"></textarea>
+                            <label for="{{ form.note.id_for_label }}" class="form-label">{{ form.note.label }}</label>
+                            {{ form.note }}
                         </div>
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'finance_app:goal-list' %}" class="btn btn-secondary">
+                            <a href="{% url 'finance_app:goal-detail' goal.id %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Quay lại
                             </a>
                             <button type="submit" class="btn btn-success" id="submitBtn">
@@ -102,48 +97,34 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('contributionForm');
-        const cardSelect = document.getElementById('id_card');
-        const amountInput = document.getElementById('id_amount');
+        const cardSelect = document.getElementById('{{ form.card.id_for_label }}');
+        const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
         const submitBtn = document.getElementById('submitBtn');
-        const cardError = document.getElementById('cardError');
-        const amountError = document.getElementById('amountError');
-        const maxAmount = {{ goal.remaining_amount }};
+        const maxAmount = {{ remaining_amount }};
 
         function validateForm() {
             let isValid = true;
             
-            // Reset error messages
-            cardError.textContent = '';
-            amountError.textContent = '';
-            cardSelect.classList.remove('is-invalid');
-            amountInput.classList.remove('is-invalid');
-
-            // Validate card selection
+            // Kiểm tra thẻ/ví
             if (!cardSelect.value) {
-                cardError.textContent = 'Vui lòng chọn thẻ/ví';
                 cardSelect.classList.add('is-invalid');
                 isValid = false;
+            } else {
+                cardSelect.classList.remove('is-invalid');
             }
-
-            // Validate amount
+            
+            // Kiểm tra số tiền
             const amount = parseFloat(amountInput.value);
-            const selectedOption = cardSelect.options[cardSelect.selectedIndex];
-            const cardBalance = selectedOption ? parseFloat(selectedOption.dataset.balance) : 0;
-
             if (isNaN(amount) || amount < 1000) {
-                amountError.textContent = 'Số tiền tối thiểu là 1,000 VNĐ';
-                amountInput.classList.add('is-invalid');
-                isValid = false;
-            } else if (amount > cardBalance) {
-                amountError.textContent = `Số tiền không được vượt quá số dư (${cardBalance.toLocaleString()} VNĐ)`;
                 amountInput.classList.add('is-invalid');
                 isValid = false;
             } else if (amount > maxAmount) {
-                amountError.textContent = `Số tiền không được vượt quá số tiền còn thiếu (${maxAmount.toLocaleString()} VNĐ)`;
                 amountInput.classList.add('is-invalid');
                 isValid = false;
+            } else {
+                amountInput.classList.remove('is-invalid');
             }
-
+            
             return isValid;
         }
 
@@ -154,9 +135,6 @@
         });
 
         cardSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const cardBalance = parseFloat(selectedOption.dataset.balance);
-            amountInput.max = Math.min(cardBalance, maxAmount);
             validateForm();
         });
 
