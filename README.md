@@ -34,65 +34,52 @@ Spend-Management-Web/
 └── .git/                            # Thư mục Git
 ```
 
-## Chi tiết các thành phần
-
-### 1. Cấu hình dự án (personal_finance/)
-- `settings.py`: Chứa các cấu hình chính của dự án như database, middleware, installed apps
-- `urls.py`: Định nghĩa các URL chính của dự án
-- `wsgi.py` & `asgi.py`: Cấu hình cho việc triển khai web server
-
-### 2. Ứng dụng chính (finance_app/)
-- `models.py`: Định nghĩa cấu trúc dữ liệu và quan hệ giữa các bảng
-- `views.py`: Xử lý logic nghiệp vụ và tương tác với người dùng
-- `forms.py`: Định nghĩa các form để nhập liệu và xác thực dữ liệu
-- `urls.py`: Định nghĩa các URL của ứng dụng
-- `admin.py`: Cấu hình giao diện quản trị
-- `templates/`: Chứa các file HTML template
-- `static/`: Chứa CSS, JavaScript và hình ảnh của ứng dụng
-- `templatetags/`: Chứa các custom template tags
-- `migrations/`: Quản lý các thay đổi cấu trúc database
-
-### 3. Thư mục hỗ trợ
-- `staticfiles/`: Chứa các file tĩnh đã được thu thập từ tất cả các ứng dụng
-- `media/`: Lưu trữ các file media được upload bởi người dùng
-- `db.sqlite3`: Database SQLite chứa dữ liệu của ứng dụng
-
 ## Yêu cầu hệ thống
 
 - Python 3.x
 - Django
 - Các thư viện được liệt kê trong file requirements.txt
 
-## Cài đặt
+## Hướng dẫn cài đặt và chạy ứng dụng (KHÔNG dùng Docker)
 
-1. Clone repository:
+### 1. Clone repository:
 ```bash
 git clone [URL_REPOSITORY]
 cd Spend-Management-Web
 ```
 
-2. Tạo và kích hoạt môi trường ảo:
+### 2. Tạo và kích hoạt môi trường ảo (venv):
 ```bash
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+# Trên Windows:
+venv\Scripts\activate
+# Trên macOS/Linux:
+source venv/bin/activate
 ```
 
-3. Cài đặt các thư viện cần thiết:
+### 3. Cài đặt các thư viện cần thiết:
 ```bash
 pip install -r personal_finance/requirements.txt
 ```
 
-4. Chạy migrations:
+### 4. Chạy migrate để tạo database:
 ```bash
 cd personal_finance
 python manage.py migrate
 ```
 
-5. Khởi động server:
+### 5. Tạo tài khoản admin (tùy chọn):
+```bash
+python manage.py createsuperuser
+```
+
+### 6. Chạy server:
 ```bash
 python manage.py runserver
 ```
+
+### 7. Truy cập ứng dụng:
+- Mở trình duyệt và truy cập: http://localhost:8000
 
 ## Tính năng chính
 
