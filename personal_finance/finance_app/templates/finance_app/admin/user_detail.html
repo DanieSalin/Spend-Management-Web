@@ -2,133 +2,128 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Chi tiết Người dùng - Admin{% endblock %}
+{% block title %}Chi tiết người dùng - {{ user.username }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Chi tiết Người dùng</h2>
-        <a href="{% url 'finance_app:admin-user-list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Quay lại
-        </a>
-    </div>
-
+<div class="container-fluid py-4">
     <div class="row">
-        <!-- Thông tin cơ bản -->
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Thông tin cơ bản</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table">
-                        <tr>
-                            <th>ID:</th>
-                            <td>{{ user.id }}</td>
-                        </tr>
-                        <tr>
-                            <th>Tên đăng nhập:</th>
-                            <td>{{ user.username }}</td>
-                        </tr>
-                        <tr>
-                            <th>Email:</th>
-                            <td>{{ user.email }}</td>
-                        </tr>
-                        <tr>
-                            <th>Ngày đăng ký:</th>
-                            <td>{{ user.date_joined|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Lần cuối đăng nhập:</th>
-                            <td>{{ user.last_login|date:"d/m/Y H:i"|default:"Chưa đăng nhập" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Trạng thái:</th>
-                            <td>
-                                <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
-                                    {{ user.is_active|yesno:"Hoạt động,Bị khóa" }}
-                                </span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Thống kê -->
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Thống kê</h5>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user me-2"></i>Chi tiết người dùng
+                    </h4>
+                    <div class="btn-group">
+                        <a href="{% url 'finance_app:admin-user-list' %}" class="btn btn-light btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Quay lại
+                        </a>
+                        <a href="{% url 'finance_app:admin-user-transactions' user.id %}" class="btn btn-light btn-sm">
+                            <i class="fas fa-exchange-alt me-1"></i>Xem giao dịch
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4">
-                            <div class="text-center mb-3">
-                                <h6>Giao dịch</h6>
-                                <h3>{{ user.transaction_count }}</h3>
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Thông tin cơ bản</h5>
+                            <table class="table">
+                                <tr>
+                                    <th style="width: 200px;">Tên đăng nhập</th>
+                                    <td>{{ user.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Email</th>
+                                    <td>{{ user.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Ngày tham gia</th>
+                                    <td>{{ user.date_joined|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Lần cuối đăng nhập</th>
+                                    <td>{{ user.last_login|date:"d/m/Y H:i"|default:"Chưa đăng nhập" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Trạng thái</th>
+                                    <td>
+                                        <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ user.is_active|yesno:"Đang hoạt động,Bị khóa" }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Thống kê</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Số giao dịch</h6>
+                                            <h2 class="mb-0">{{ user.transaction_count }}</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Số ví/thẻ</h6>
+                                            <h2 class="mb-0">{{ user.card_count }}</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Số mục tiêu</h6>
+                                            <h2 class="mb-0">{{ user.goal_count }}</h2>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="text-center mb-3">
-                                <h6>Thẻ/Ví</h6>
-                                <h3>{{ user.card_count }}</h3>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-center mb-3">
-                                <h6>Mục tiêu</h6>
-                                <h3>{{ user.goal_count }}</h3>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="mb-3">Giao dịch gần đây</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Ngày</th>
+                                            <th>Loại</th>
+                                            <th>Số tiền</th>
+                                            <th>Danh mục</th>
+                                            <th>Ví/Thẻ</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for transaction in recent_transactions %}
+                                        <tr>
+                                            <td>{{ transaction.date|date:"d/m/Y" }}</td>
+                                            <td>
+                                                <span class="badge {% if transaction.transaction_type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {{ transaction.get_transaction_type_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ transaction.amount|intcomma }} VNĐ</td>
+                                            <td>{{ transaction.category.name }}</td>
+                                            <td>{{ transaction.card.name }}</td>
+                                            <td>{{ transaction.note|default:"-" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center">Không có giao dịch nào</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Giao dịch gần đây -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Giao dịch gần đây</h5>
-            <a href="{% url 'finance_app:admin-user-transactions' user.id %}" class="btn btn-primary btn-sm">
-                Xem tất cả
-            </a>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Ngày</th>
-                            <th>Loại</th>
-                            <th>Số tiền</th>
-                            <th>Danh mục</th>
-                            <th>Thẻ/Ví</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for transaction in recent_transactions %}
-                        <tr>
-                            <td>{{ transaction.date|date:"d/m/Y" }}</td>
-                            <td>
-                                <span class="badge {% if transaction.transaction_type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
-                                    {{ transaction.get_transaction_type_display }}
-                                </span>
-                            </td>
-                            <td>{{ transaction.amount|floatformat:0 }} VNĐ</td>
-                            <td>{{ transaction.category.name }}</td>
-                            <td>{{ transaction.card.name }}</td>
-                            <td>{{ transaction.note|default:"-" }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center">Chưa có giao dịch nào</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
@@ -137,67 +132,34 @@
 
 {% block extra_css %}
 <style>
-    .stat-card {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 15px;
-        text-align: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        transition: transform 0.3s ease;
-        border: 1px solid rgba(0,0,0,0.05);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-        background: #ffffff;
-    }
-
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        background: #ffffff;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-    }
-
-    .stat-icon i {
-        font-size: 1.5rem;
-        color: #3498db;
-    }
-
-    .stat-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        width: 100%;
-        gap: 0.5rem;
-    }
-
-    .stat-number {
-        font-size: 1.8rem;
-        font-weight: 700;
-        margin: 0;
-        line-height: 1.2;
-        text-shadow: none;
-        color: #222 !important;
-    }
-
-    .stat-label {
-        color: #222 !important;
-        margin: 0;
-        font-size: 0.9rem;
+    .table th {
+        background-color: #f8f9fa;
         font-weight: 600;
-        padding-top: 0.5rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .badge {
+        padding: 0.5em 0.8em;
+        font-weight: 500;
+    }
+
+    .card {
+        transition: transform 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+
+    .btn-group .btn:hover {
+        transform: translateY(-2px);
     }
 </style>
 {% endblock %} 

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,9 +39,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.humanize',
+    'django.contrib.sites',  # Required for allauth
+    'django.contrib.humanize',  # Required for number formatting
+    
+    # Third party apps
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
     'crispy_forms',
     'crispy_bootstrap5',
+    
+    # Local apps
     'finance_app',
 ]
 
@@ -52,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'personal_finance.urls'
@@ -134,6 +145,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 # # Google OAuth2 settings
@@ -149,7 +161,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'finance_app:index'
 LOGOUT_URL = 'logout'
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'account_login'
 
 SOCIAL_AUTH_URL_NAMESPACE = 'social'
 
@@ -158,9 +170,104 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'dodat2004py@gmail.com'  # Thay thế bằng email của bạn
+EMAIL_HOST_PASSWORD = 'uvvs qqeg btqb ggjh'  # Thay thế bằng App Password của bạn
+DEFAULT_FROM_EMAIL = 'dodat2004py@gmail.com'  # Thay thế bằng email của bạn
 
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+SITE_ID = 1
+
+# Admin settings
+ADMIN_URL = 'admin/'
+ADMIN_SITE_HEADER = "Finance Management Admin"
+ADMIN_SITE_TITLE = "Finance Management Admin Portal"
+ADMIN_INDEX_TITLE = "Welcome to Finance Management Portal"
+
+# Auth settings
+AUTH_USER_MODEL = 'auth.User'
+
+# Allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_LOGOUT_REDIRECT_URL = 'account_login'
+
+# Rate limiting
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '5/m',  # 5 lần mỗi phút
+    'signup': '5/m',
+    'password_reset': '5/m',
+    'password_reset_email': '5/m',
+    'password_reset_from_key': '5/m',
+    'email_confirmation': '5/m',
+}
+
+# Social account settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': '387545854652-56673q47drvuaci8vgo1l7jg05oe2oob.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# Cấu hình callback URL
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http'
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
+ACCOUNT_SESSION_REMEMBER = True
+
+# Cấu hình site
+SITE_ID = 1
+
+# Cấu hình login/logout
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+LOGIN_URL = '/login/'
+
+# Cấu hình CSRF
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000']
+
+# Cấu hình Session
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+# Cấu hình Allauth
+ACCOUNT_ADAPTER = 'finance_app.adapters.CustomAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'finance_app.adapters.CustomSocialAccountAdapter'
+
+# Cấu hình OAuth
+OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/accounts/google/login/callback/'
+OAUTH2_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+OAUTH2_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+OAUTH2_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo'
+
+# Cấu hình Social Account
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_STORE_TOKENS = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
+# Knox settings
+REST_KNOX = {
+    'TOKEN_TTL': timedelta(days=7),
+    'AUTO_REFRESH': True,
+}
 
 

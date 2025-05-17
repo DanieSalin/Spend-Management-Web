@@ -21,6 +21,7 @@ urlpatterns = [
     ), name='password_change_done'),
     # Thêm dòng này vào urlpatterns trong personal_finance/urls.py
     path('accounts/logout/', views.CustomLogoutView.as_view(), name='custom_logout'),
+    path('accounts/profile/update/', views.update_profile, name='update-profile'),
     # Trang chủ và Dashboard
     path('', views.LandingView.as_view(), name='landing'),  # Trang giới thiệu
     path('home/', views.HomeView.as_view(), name='index'),  # Trang chủ sau khi đăng nhập
@@ -70,11 +71,13 @@ urlpatterns = [
     path('notifications/get/', views.get_notifications, name='get_notifications'),
     path('notifications/mark-read/<int:notification_id>/', views.mark_notification_read, name='mark_notification_read'),
     
-    # Admin URLs
-    path('admin/', views.admin_dashboard, name='admin-dashboard'),
-    path('admin/users/', views.admin_user_list, name='admin-user-list'),
-    path('admin/users/<int:user_id>/', views.admin_user_detail, name='admin-user-detail'),
-    path('admin/users/<int:user_id>/transactions/', views.admin_user_transactions, name='admin-user-transactions'),
-    path('admin/users/<int:user_id>/toggle-status/', views.admin_toggle_user_status, name='admin-toggle-user-status'),
-    path('admin/users/<int:user_id>/delete/', views.admin_delete_user, name='admin-delete-user'),
+    # Admin URLs - Thay đổi prefix từ 'admin/' thành 'manage/'
+    path('manage/', views.admin_dashboard, name='admin-dashboard'),
+    path('manage/users/', views.admin_user_list, name='admin-user-list'),
+    path('manage/users/<int:user_id>/', views.admin_user_detail, name='admin-user-detail'),
+    path('manage/users/<int:user_id>/transactions/', views.admin_user_transactions, name='admin-user-transactions'),
+    path('manage/users/<int:user_id>/toggle-status/', views.admin_toggle_user_status, name='admin-toggle-user-status'),
+    path('manage/users/<int:user_id>/delete/', views.admin_delete_user, name='admin-delete-user'),
+    path('manage/users/export/', views.export_users_to_excel, name='admin-export-users'),
+    path('manage/transactions/<int:transaction_id>/detail/', views.admin_transaction_detail, name='admin-transaction-detail'),
 ]

@@ -398,7 +398,7 @@ class GoalContributionForm(forms.ModelForm):
             'amount': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': '1000',
-                'max': '999999999999',  # Giới hạn 12 chữ số
+                'max': '9999999999999999',  # Giới hạn 16 chữ số
                 'step': 'any',
                 'placeholder': 'Nhập số tiền muốn góp'
             }),
@@ -429,8 +429,8 @@ class GoalContributionForm(forms.ModelForm):
         if amount < 1000:
             raise forms.ValidationError('Số tiền góp tối thiểu là 1,000 VNĐ')
             
-        if len(str(int(amount))) > 12:
-            raise forms.ValidationError('Số tiền không được vượt quá 12 chữ số')
+        if len(str(int(amount))) > 16:
+            raise forms.ValidationError('Số tiền không được vượt quá 16 chữ số')
             
         if self.goal:
             remaining = self.goal.target_amount - self.goal.current_amount

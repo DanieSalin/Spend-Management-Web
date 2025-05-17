@@ -22,9 +22,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('django-admin/', admin.site.urls),
+    path('admin/', admin.site.urls),
     path('', include('finance_app.urls')),
-    path('accounts/', include('django.contrib.auth.urls')),
+    path('accounts/', include('allauth.urls')),
     path('accounts/profile/', views.ProfileView.as_view(), name='profile'),
     path('accounts/password_change/', 
          auth_views.PasswordChangeView.as_view(
@@ -37,7 +37,7 @@ urlpatterns = [
              template_name='registration/password_change_done.html'
          ), 
          name='password_change_done'),
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,38 @@
+{% extends "finance_app/base.html" %}
+{% load i18n %}
+{% load account socialaccount %}
+
+{% block title %}{% trans "Đăng ký với Google" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h1 class="text-center mb-4">{% trans "Đăng ký với Google" %}</h1>
+                    
+                    <div class="text-center mb-4">
+                        <p class="lead">{% trans "Bạn đang đăng ký bằng tài khoản Google" %}</p>
+                        <p>{% trans "Vui lòng chọn tài khoản Google của bạn để tiếp tục" %}</p>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="https://accounts.google.com/o/oauth2/v2/auth/oauthchooseaccount?client_id=387545854652-56673q47drvuaci8vgo1l7jg05oe2oob.apps.googleusercontent.com&redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Faccounts%2Fgoogle%2Flogin%2Fcallback%2F&scope=email%20profile&response_type=code&state={{ state }}&access_type=online&service=lso&o2v=2&flowName=GeneralOAuthFlow" 
+                           class="btn btn-danger btn-lg">
+                            <i class="fab fa-google me-2"></i>{% trans "Chọn tài khoản Google" %}
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <p>{% trans "hoặc" %}</p>
+                        <a href="{% url 'finance_app:register' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-2"></i>{% trans "Quay lại đăng ký" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

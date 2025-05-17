@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.template.loader import render_to_string
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.views.generic import (
@@ -11,7 +12,7 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.contrib.humanize.templatetags.humanize import intcomma
 import json
@@ -22,6 +23,8 @@ from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST
 from django.db import transaction
 from django.core.exceptions import ValidationError
+import xlsxwriter
+from io import BytesIO
 
 from .models import Category, Card, Goal, Budget, Transaction, GoalContribution, GoalTransaction, UserProfile, Notification
 from .forms import RegisterForm, LoginForm, CategoryForm, CardForm, GoalForm, BudgetForm, TransactionForm, GoalContributionForm, UserProfileForm
@@ -271,22 +274,68 @@ def sync_default_categories(request):
         users = User.objects.exclude(id=request.user.id)
         
         # Lấy tất cả danh mục mặc định của admin
-        admin_categories = Category.objects.filter(user=request.user, is_default=True)
+        admin_categories = list(Category.objects.filter(user=request.user, is_default=True))
         
-        sync_count = 0
+        sync_count = 0  # Số danh mục tạo mới
+        update_count = 0  # Số danh mục cập nhật
+        delete_count = 0  # Số danh mục xóa
+        
         for user in users:
             # Log thông tin user đang xử lý
             print(f"Đang đồng bộ danh mục cho user: {user.username}")
             
+            # BƯỚC 1: Xóa tất cả các danh mục mặc định của user không có trong danh sách của admin
+            admin_category_names = [c.name for c in admin_categories]
+            
+            # Lấy tất cả danh mục mặc định của user
+            user_default_categories = list(Category.objects.filter(user=user, is_default=True))
+            
+            # Xóa các danh mục mặc định không còn trong danh sách mặc định của admin
+            for user_category in user_default_categories:
+                if user_category.name not in admin_category_names:
+                    # Xóa hoàn toàn danh mục
+                    category_name = user_category.name
+                    user_category.delete()
+                    delete_count += 1
+                    print(f"Đã xóa danh mục '{category_name}' của user {user.username}")
+            
+            # BƯỚC 2: Thêm/Cập nhật các danh mục mặc định từ admin cho user
             for admin_category in admin_categories:
-                # Kiểm tra xem danh mục đã tồn tại chưa
-                category_exists = Category.objects.filter(
-                    user=user,
-                    name=admin_category.name
-                ).exists()
-                
-                if not category_exists:
-                    # Tạo danh mục mới cho user
+                try:
+                    # Kiểm tra xem danh mục đã tồn tại chưa
+                    user_category = Category.objects.get(user=user, name=admin_category.name)
+                    
+                    # Cập nhật thông tin danh mục (đảm bảo giống hệt admin)
+                    updated = False
+                    
+                    # Kiểm tra từng thuộc tính
+                    if user_category.type != admin_category.type:
+                        user_category.type = admin_category.type
+                        updated = True
+                        print(f"Cập nhật loại danh mục '{admin_category.name}' cho user {user.username}")
+                        
+                    if user_category.description != admin_category.description:
+                        user_category.description = admin_category.description
+                        updated = True
+                        print(f"Cập nhật mô tả danh mục '{admin_category.name}' cho user {user.username}")
+                        
+                    if user_category.icon != admin_category.icon:
+                        user_category.icon = admin_category.icon
+                        updated = True
+                        print(f"Cập nhật icon danh mục '{admin_category.name}' cho user {user.username}")
+                        
+                    if not user_category.is_default:
+                        user_category.is_default = True
+                        updated = True
+                        print(f"Đánh dấu danh mục '{admin_category.name}' là mặc định cho user {user.username}")
+                    
+                    if updated:
+                        user_category.save()
+                        update_count += 1
+                        print(f"Đã cập nhật danh mục '{admin_category.name}' cho user {user.username}")
+                        
+                except Category.DoesNotExist:
+                    # Tạo danh mục mới cho user - sao chép chính xác từ admin
                     Category.objects.create(
                         user=user,
                         name=admin_category.name,
@@ -296,17 +345,18 @@ def sync_default_categories(request):
                         is_default=True
                     )
                     sync_count += 1
-                    print(f"Đã tạo danh mục '{admin_category.name}' cho user {user.username}")
+                    print(f"Đã tạo danh mục mới '{admin_category.name}' cho user {user.username}")
         
-        if sync_count > 0:
+        # Kiểm tra xem có thay đổi nào không
+        if sync_count > 0 or update_count > 0 or delete_count > 0:
             messages.success(
                 request, 
-                f"Đã đồng bộ {sync_count} danh mục cho {users.count()} người dùng."
+                f"Đã đồng bộ thành công: {sync_count} danh mục mới, {update_count} danh mục được cập nhật và {delete_count} danh mục được xóa cho {users.count()} người dùng."
             )
         else:
             messages.info(
                 request,
-                "Không có danh mục mới nào cần đồng bộ."
+                "Tất cả danh mục mặc định đã được đồng bộ. Không có thay đổi nào."
             )
             
     except Exception as e:
@@ -889,116 +939,104 @@ User = get_user_model()
 def is_admin(user):
     return user.is_staff
 
+@login_required
 @user_passes_test(is_admin)
 def admin_user_list(request):
-    users = User.objects.annotate(
-        transaction_count=Count('transaction', distinct=True),
-        card_count=Count('cards', distinct=True),
-        goal_count=Count('goals', distinct=True)
-    ).order_by('-date_joined')
+    # Lấy danh sách người dùng
+    users = User.objects.all()
+    
+    # Tạo một list để lưu thông tin chi tiết của mỗi người dùng
+    user_details = []
+    
+    for user in users:
+        # Đếm số lượng giao dịch
+        transaction_count = Transaction.objects.filter(user=user).count()
+        
+        # Đếm số lượng ví/thẻ
+        card_count = Card.objects.filter(user=user).count()
+        
+        # Đếm số lượng mục tiêu
+        goal_count = Goal.objects.filter(user=user).count()
+        
+        # Thêm thông tin vào user_details
+        user_details.append({
+            'user': user,
+            'transaction_count': transaction_count,
+            'card_count': card_count,
+            'goal_count': goal_count
+        })
+    
+    # Sắp xếp theo ngày tham gia mới nhất
+    user_details.sort(key=lambda x: x['user'].date_joined, reverse=True)
     
     return render(request, 'finance_app/admin/user_list.html', {
-        'users': users
+        'user_details': user_details
     })
 
+@login_required
 @user_passes_test(is_admin)
 def admin_user_detail(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    
-    # Thống kê
-    user.transaction_count = user.transaction_set.count()
-    user.card_count = user.cards.count()
-    user.goal_count = user.goals.count()
-    
-    # Giao dịch gần đây
-    recent_transactions = user.transaction_set.select_related('category', 'card').order_by('-date')[:5]
-    
+    user.transaction_count = Transaction.objects.filter(user=user).count()
+    user.card_count = Card.objects.filter(user=user).count()
+    user.goal_count = Goal.objects.filter(user=user).count()
+    recent_transactions = Transaction.objects.filter(user=user).order_by('-date')[:5]
     return render(request, 'finance_app/admin/user_detail.html', {
         'user': user,
         'recent_transactions': recent_transactions
     })
 
+@login_required
 @user_passes_test(is_admin)
 def admin_user_transactions(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    
-    # Lấy danh sách giao dịch
-    transactions = user.transaction_set.select_related('category', 'card').order_by('-date')
-    
-    # Lấy danh sách danh mục và ví/thẻ của user
-    categories = user.categories.all()
-    cards = user.cards.all()
-    
-    # Phân trang
-    paginator = Paginator(transactions, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
+    transactions = Transaction.objects.filter(user=user).order_by('-date')
+    categories = Category.objects.filter(user=user)
+    cards = Card.objects.filter(user=user)
     return render(request, 'finance_app/admin/user_transactions.html', {
         'user': user,
-        'transactions': page_obj,
+        'transactions': transactions,
         'categories': categories,
-        'cards': cards,
-        'is_paginated': page_obj.has_other_pages()
+        'cards': cards
     })
 
+@login_required
 @user_passes_test(is_admin)
 def admin_toggle_user_status(request, user_id):
     if request.method == 'POST':
-        try:
-            # Kiểm tra nếu user_id là chính admin đang đăng nhập
-            if int(user_id) == request.user.id:
-                return JsonResponse({
-                    'success': False, 
-                    'message': 'Không thể khóa tài khoản của chính bạn!'
-                })
-                
-            user = User.objects.get(id=user_id)
-            
-            # Kiểm tra nếu đây là tài khoản superuser khác
-            if user.is_superuser and not request.user.is_superuser:
-                return JsonResponse({
-                    'success': False, 
-                    'message': 'Không thể thay đổi trạng thái tài khoản admin!'
-                })
-                
+        user = get_object_or_404(User, id=user_id)
+        if user.is_superuser:
+            return JsonResponse({'success': False, 'message': 'Không thể thay đổi trạng thái của tài khoản admin'})
+        if user.id != request.user.id:
             user.is_active = not user.is_active
             user.save()
             return JsonResponse({'success': True})
-        except User.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'Người dùng không tồn tại'})
-    return JsonResponse({'success': False, 'message': 'Phương thức không hợp lệ'})
+        return JsonResponse({'success': False, 'message': 'Không thể thực hiện thao tác với tài khoản của bạn'})
+    return JsonResponse({'success': False, 'message': 'Phương thức không được hỗ trợ'})
 
+@login_required
 @user_passes_test(is_admin)
 def admin_delete_user(request, user_id):
     if request.method == 'POST':
-        try:
-            user = User.objects.get(id=user_id)
-            username = user.username
-            
-            # Thêm lệnh print để debug
-            print(f"Đang tạo thông báo xóa người dùng: {username}")
-            
-            # Tạo thông báo trước khi xóa người dùng
-            create_notification(
-                request.user,
-                'Xóa người dùng',
-                f'Bạn đã xóa người dùng: {username}',
-                'system'
-            )
-            
-            # Xóa người dùng sau khi đã tạo thông báo
-            user.delete()
-            print(f"Đã xóa người dùng: {username}")
-            
+        user = get_object_or_404(User, id=user_id)
+        if user.is_superuser:
+            messages.error(request, 'Không thể xóa tài khoản admin')
             return redirect('finance_app:admin-user-list')
-        except User.DoesNotExist:
-            print("Không tìm thấy người dùng")
-            messages.error(request, 'Người dùng không tồn tại')
-        except Exception as e:
-            print(f"Lỗi khi xóa người dùng: {str(e)}")
-            messages.error(request, f'Có lỗi xảy ra: {str(e)}')
+        if user.id != request.user.id:
+            user.delete()
+            messages.success(request, 'Đã xóa người dùng thành công')
+            return redirect('finance_app:admin-user-list')
+        messages.error(request, 'Không thể xóa tài khoản của bạn')
     return redirect('finance_app:admin-user-list')
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_transaction_detail(request, transaction_id):
+    from .models import Transaction
+    transaction = Transaction.objects.select_related('category', 'card', 'user').get(id=transaction_id)
+    html = render_to_string('finance_app/admin/transaction_detail_modal.html', {'transaction': transaction})
+    return JsonResponse({'success': True, 'html': html})
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = 'finance_app/index.html'
@@ -1364,7 +1402,7 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         # Xử lý form cập nhật thông tin cá nhân
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
-        email = request.POST.get('email')
+        email = request.POST.get('email', '')
         
         if first_name:
             user.first_name = first_name
@@ -1474,28 +1512,48 @@ class TransactionCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         form.instance.user = self.request.user
-        response = super().form_valid(form)
         
-        # Cập nhật số dư thẻ/ví
-        card = form.instance.card
-        if form.instance.transaction_type == 'income':
-            card.balance += form.instance.amount
-        else:  # expense
-            card.balance -= form.instance.amount
-            if card.balance < 0:
-                card.balance = 0
-        card.save()
-        
-        # Tạo thông báo
-        transaction_type = 'Thu nhập' if form.instance.transaction_type == 'income' else 'Chi tiêu'
-        create_notification(
-            self.request.user,
-            f'Giao dịch {transaction_type} mới',
-            f'Bạn đã tạo một giao dịch {transaction_type.lower()}: {form.instance.amount:,.0f} VNĐ - {form.instance.category.name}',
-            'transaction'
-        )
-        
-        return response
+        # Kiểm tra số dư trước khi lưu
+        try:
+            # Thử kiểm tra số dư
+            if form.instance.transaction_type == 'expense':
+                card = form.instance.card
+                if card.balance < form.instance.amount:
+                    # Tính số tiền thiếu
+                    missing_amount = form.instance.amount - card.balance
+                    # Thông báo chi tiết
+                    error_message = f'Số dư không đủ để thực hiện giao dịch. Số dư hiện tại: {int(card.balance):,} VNĐ, cần thêm: {int(missing_amount):,} VNĐ'
+                    form.add_error(None, error_message)
+                    return self.form_invalid(form)
+                    
+            # Lưu giao dịch
+            response = super().form_valid(form)
+            
+            # Cập nhật số dư thẻ/ví
+            card = form.instance.card
+            if form.instance.transaction_type == 'income':
+                card.balance += form.instance.amount
+            else:  # expense
+                card.balance -= form.instance.amount
+                if card.balance < 0:
+                    card.balance = 0
+            card.save()
+            
+            # Tạo thông báo
+            transaction_type = 'Thu nhập' if form.instance.transaction_type == 'income' else 'Chi tiêu'
+            create_notification(
+                self.request.user,
+                f'Giao dịch {transaction_type} mới',
+                f'Bạn đã tạo một giao dịch {transaction_type.lower()}: {form.instance.amount:,.0f} VNĐ - {form.instance.category.name}',
+                'transaction'
+            )
+            
+            return response
+            
+        except ValidationError as e:
+            # Bắt lỗi ValidationError và hiển thị trên form
+            form.add_error(None, str(e))
+            return self.form_invalid(form)
 
 class TransactionDetailView(LoginRequiredMixin, DetailView):
     model = Transaction
@@ -1641,3 +1699,148 @@ class CustomLogoutView(View):
         logout(request)
         # Chuyển hướng đến trang landing
         return redirect('finance_app:landing')
+
+@login_required
+@user_passes_test(is_admin)
+def export_users_to_excel(request):
+    try:
+        # Tạo một BytesIO object để lưu file Excel
+        output = BytesIO()
+        
+        # Tạo workbook và worksheet
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet('Danh sách người dùng')
+        
+        # Định dạng cho header
+        header_format = workbook.add_format({
+            'bold': True,
+            'align': 'center',
+            'valign': 'vcenter',
+            'fg_color': '#D7E4BC',
+            'border': 1
+        })
+        
+        # Định dạng cho dữ liệu
+        data_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'border': 1
+        })
+        
+        # Định dạng cho trạng thái
+        active_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'border': 1,
+            'fg_color': '#C6EFCE'
+        })
+        
+        inactive_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'border': 1,
+            'fg_color': '#FFC7CE'
+        })
+        
+        # Đặt độ rộng cột
+        worksheet.set_column('A:A', 20)  # Tên đăng nhập
+        worksheet.set_column('B:B', 30)  # Email
+        worksheet.set_column('C:C', 20)  # Ngày tham gia
+        worksheet.set_column('D:D', 15)  # Số giao dịch
+        worksheet.set_column('E:E', 15)  # Số ví/thẻ
+        worksheet.set_column('F:F', 15)  # Số mục tiêu
+        worksheet.set_column('G:G', 20)  # Trạng thái
+        
+        # Thêm header
+        headers = ['Tên đăng nhập', 'Email', 'Ngày tham gia', 'Số giao dịch', 'Số ví/thẻ', 'Số mục tiêu', 'Trạng thái']
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, header_format)
+        
+        # Lấy dữ liệu người dùng
+        users = User.objects.all()
+        row = 1
+        
+        for user in users:
+            # Đếm số lượng giao dịch, ví/thẻ và mục tiêu
+            transaction_count = Transaction.objects.filter(user=user).count()
+            card_count = Card.objects.filter(user=user).count()
+            goal_count = Goal.objects.filter(user=user).count()
+            
+            # Ghi dữ liệu vào worksheet
+            worksheet.write(row, 0, user.username, data_format)
+            worksheet.write(row, 1, user.email, data_format)
+            worksheet.write(row, 2, user.date_joined.strftime('%d/%m/%Y %H:%M'), data_format)
+            worksheet.write(row, 3, transaction_count, data_format)
+            worksheet.write(row, 4, card_count, data_format)
+            worksheet.write(row, 5, goal_count, data_format)
+            
+            # Ghi trạng thái với định dạng tương ứng
+            status = 'Đang hoạt động' if user.is_active else 'Bị khóa'
+            status_format = active_format if user.is_active else inactive_format
+            worksheet.write(row, 6, status, status_format)
+            
+            row += 1
+        
+        # Thêm thông tin tổng kết
+        worksheet.write(row + 1, 0, 'Tổng số người dùng:', header_format)
+        worksheet.write(row + 1, 1, users.count(), data_format)
+        worksheet.write(row + 2, 0, 'Người dùng đang hoạt động:', header_format)
+        worksheet.write(row + 2, 1, users.filter(is_active=True).count(), data_format)
+        worksheet.write(row + 3, 0, 'Người dùng bị khóa:', header_format)
+        worksheet.write(row + 3, 1, users.filter(is_active=False).count(), data_format)
+        
+        # Đóng workbook
+        workbook.close()
+        
+        # Tạo response
+        output.seek(0)
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename=danh_sach_nguoi_dung_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        
+        messages.success(request, 'Đã xuất danh sách người dùng thành công!')
+        return response
+        
+    except Exception as e:
+        messages.error(request, f'Có lỗi xảy ra khi xuất Excel: {str(e)}')
+        return redirect('finance_app:admin-user-list')
+
+@login_required
+def update_profile(request):
+    if request.method == 'POST':
+        try:
+            user = request.user
+            profile = user.profile
+
+            # Cập nhật thông tin User
+            old_username = user.username
+            old_email = user.email
+            
+            user.username = request.POST.get('username', '')
+            user.email = request.POST.get('email', '')
+            user.save()
+
+            # Tạo thông báo đơn giản
+            create_notification(
+                user,
+                'Cập nhật thông tin tài khoản',
+                'Bạn đã cập nhật thông tin tài khoản thành công',
+                'system'
+            )
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Bạn đã cập nhật thông tin thành công'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Có lỗi xảy ra: {str(e)}'
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Phương thức không được hỗ trợ'
+    })

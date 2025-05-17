@@ -2,30 +2,29 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Giao dịch của {{ user.username }} - Admin{% endblock %}
+{% block title %}Giao dịch của {{ user.username }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
                 <i class="fas fa-exchange-alt me-2"></i>Giao dịch của {{ user.username }}
             </h4>
-            <a href="{% url 'finance_app:admin-user-detail' user.id %}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-arrow-left me-1"></i>Quay lại
-            </a>
+            <div class="btn-group">
+                <a href="{% url 'finance_app:admin-user-detail' user.id %}" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i>Quay lại
+                </a>
+                <button type="button" class="btn btn-light btn-sm" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-1"></i>Xuất Excel
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm...">
-                    </div>
-                </div>
-                <div class="col-md-3">
                     <select class="form-select" id="typeFilter">
-                        <option value="">Tất cả loại</option>
+                        <option value="">Tất cả loại giao dịch</option>
                         <option value="income">Thu nhập</option>
                         <option value="expense">Chi tiêu</option>
                     </select>
@@ -40,11 +39,19 @@
                 </div>
                 <div class="col-md-3">
                     <select class="form-select" id="cardFilter">
-                        <option value="">Tất cả ví/thẻ</option>
+                        <option value="">Tất cả thẻ/ví</option>
                         {% for card in cards %}
                         <option value="{{ card.id }}">{{ card.name }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -54,10 +61,11 @@
                         <tr>
                             <th>Ngày</th>
                             <th>Loại</th>
-                            <th>Số tiền</th>
                             <th>Danh mục</th>
-                            <th>Ví/Thẻ</th>
+                            <th>Thẻ/Ví</th>
+                            <th>Số tiền</th>
                             <th>Ghi chú</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -69,54 +77,61 @@
                                     {{ transaction.get_transaction_type_display }}
                                 </span>
                             </td>
-                            <td>{{ transaction.amount|intcomma }} VNĐ</td>
                             <td>{{ transaction.category.name }}</td>
                             <td>{{ transaction.card.name }}</td>
-                            <td>{{ transaction.note|default:"-" }}</td>
+                            <td class="{% if transaction.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                {{ transaction.amount|intcomma }} VNĐ
+                            </td>
+                            <td>{{ transaction.note }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-info btn-sm view-transaction" data-transaction-id="{{ transaction.id }}" title="Chi tiết">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center">Không có giao dịch nào</td>
+                            <td colspan="7" class="text-center">Không có giao dịch nào</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            {% if is_paginated %}
-            <nav aria-label="Page navigation" class="mt-4">
+            {% if transactions.has_other_pages %}
+            <nav class="mt-4">
                 <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
+                    {% if transactions.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1" aria-label="First">
-                            <span aria-hidden="true">&laquo;&laquo;</span>
-                        </a>
+                        <a class="page-link" href="?page={{ transactions.previous_page_number }}">Trước</a>
                     </li>
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                            <span aria-hidden="true">&laquo;</span>
-                        </a>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Trước</span>
                     </li>
                     {% endif %}
 
-                    {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% for i in transactions.paginator.page_range %}
+                    {% if transactions.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                    </li>
                     {% endif %}
                     {% endfor %}
 
-                    {% if page_obj.has_next %}
+                    {% if transactions.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
-                            <span aria-hidden="true">&raquo;</span>
-                        </a>
+                        <a class="page-link" href="?page={{ transactions.next_page_number }}">Sau</a>
                     </li>
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
-                            <span aria-hidden="true">&raquo;&raquo;</span>
-                        </a>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Sau</span>
                     </li>
                     {% endif %}
                 </ul>
@@ -125,45 +140,208 @@
         </div>
     </div>
 </div>
+
+<!-- Modal chi tiết giao dịch -->
+<div class="modal fade" id="transactionDetailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Chi tiết giao dịch</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="transactionDetailContent">
+                    <!-- Nội dung sẽ được load động -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- Thêm thư viện SheetJS -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
     const typeFilter = document.getElementById('typeFilter');
     const categoryFilter = document.getElementById('categoryFilter');
     const cardFilter = document.getElementById('cardFilter');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
     const table = document.getElementById('transactionsTable');
     const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
 
     function filterTable() {
-        const searchText = searchInput.value.toLowerCase();
-        const typeValue = typeFilter.value;
+        const typeValue = typeFilter.value.toLowerCase();
         const categoryValue = categoryFilter.value;
         const cardValue = cardFilter.value;
+        const searchText = searchInput.value.toLowerCase();
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            const cells = row.getElementsByTagName('td');
-            const typeCell = cells[1].textContent.trim();
-            const categoryCell = cells[3].textContent.trim();
-            const cardCell = cells[4].textContent.trim();
-            const noteCell = cells[5].textContent.trim();
+            const type = row.cells[1].querySelector('.badge').textContent.trim().toLowerCase();
+            const category = row.cells[2].textContent.trim();
+            const card = row.cells[3].textContent.trim();
+            const note = row.cells[5].textContent.toLowerCase();
 
-            const matchesSearch = noteCell.toLowerCase().includes(searchText);
-            const matchesType = !typeValue || typeCell.includes(typeValue === 'income' ? 'Thu nhập' : 'Chi tiêu');
-            const matchesCategory = !categoryValue || categoryCell === categoryFilter.options[categoryFilter.selectedIndex].text;
-            const matchesCard = !cardValue || cardCell === cardFilter.options[cardFilter.selectedIndex].text;
+            const matchesType = !typeValue || 
+                (typeValue === 'income' && type === 'thu nhập') ||
+                (typeValue === 'expense' && type === 'chi tiêu');
+            const matchesCategory = !categoryValue || category === categoryFilter.options[categoryFilter.selectedIndex].text;
+            const matchesCard = !cardValue || card === cardFilter.options[cardFilter.selectedIndex].text;
+            const matchesSearch = !searchText || note.includes(searchText);
 
-            row.style.display = matchesSearch && matchesType && matchesCategory && matchesCard ? '' : 'none';
+            row.style.display = matchesType && matchesCategory && matchesCard && matchesSearch ? '' : 'none';
         }
     }
 
-    searchInput.addEventListener('keyup', filterTable);
     typeFilter.addEventListener('change', filterTable);
     categoryFilter.addEventListener('change', filterTable);
     cardFilter.addEventListener('change', filterTable);
+    searchButton.addEventListener('click', filterTable);
+    searchInput.addEventListener('input', filterTable);
+    searchInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            filterTable();
+        }
+    });
+
+    // Xử lý xem chi tiết giao dịch
+    document.querySelectorAll('.view-transaction').forEach(button => {
+        button.addEventListener('click', function() {
+            const transactionId = this.dataset.transactionId;
+            fetch(`/manage/transactions/${transactionId}/detail/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('transactionDetailContent').innerHTML = data.html;
+                        new bootstrap.Modal(document.getElementById('transactionDetailModal')).show();
+                    }
+                });
+        });
+    });
+
+    // Xử lý xóa giao dịch
+    document.querySelectorAll('.delete-transaction').forEach(button => {
+        button.addEventListener('click', function() {
+            const transactionId = this.dataset.transactionId;
+            if (confirm('Bạn có chắc muốn xóa giao dịch này?')) {
+                fetch(`/manage/transactions/${transactionId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra');
+                    }
+                });
+            }
+        });
+    });
 });
+
+function exportToExcel() {
+    try {
+        // Lấy tên người dùng
+        const username = '{{ user.username }}';
+        
+        // Tạo workbook mới
+        const wb = XLSX.utils.book_new();
+        
+        // Lấy dữ liệu từ bảng
+        const table = document.getElementById('transactionsTable');
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        
+        // Chuẩn bị dữ liệu cho Excel
+        const data = rows.map(row => {
+            const cells = Array.from(row.cells);
+            // Xử lý số tiền: loại bỏ "VNĐ" và dấu phẩy ngăn cách hàng nghìn
+            const amountText = cells[4].textContent.replace('VNĐ', '').replace(/,/g, '').trim();
+            return {
+                'Ngày': cells[0].textContent,
+                'Loại': cells[1].querySelector('.badge').textContent.trim(),
+                'Danh mục': cells[2].textContent,
+                'Thẻ/Ví': cells[3].textContent,
+                'Số tiền': amountText,
+                'Ghi chú': cells[5].textContent
+            };
+        });
+
+        // Tạo worksheet
+        const ws = XLSX.utils.json_to_sheet(data);
+
+        // Định dạng cột
+        const wscols = [
+            {wch: 12}, // Ngày
+            {wch: 10}, // Loại
+            {wch: 15}, // Danh mục
+            {wch: 15}, // Thẻ/Ví
+            {wch: 15}, // Số tiền
+            {wch: 30}  // Ghi chú
+        ];
+        ws['!cols'] = wscols;
+
+        // Thêm worksheet vào workbook
+        XLSX.utils.book_append_sheet(wb, ws, "Giao dịch");
+
+        // Xuất file Excel
+        XLSX.writeFile(wb, `Giao_dich_${username}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+        console.error('Lỗi khi xuất Excel:', error);
+        alert('Có lỗi xảy ra khi xuất file Excel. Vui lòng thử lại.');
+    }
+}
 </script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .badge {
+        padding: 0.5em 0.8em;
+        font-weight: 500;
+    }
+
+    .form-select:focus,
+    .form-control:focus {
+        box-shadow: none;
+        border-color: #3498db;
+    }
+
+    .input-group-text {
+        border: none;
+    }
+
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+
+    .btn-group .btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .pagination .page-link {
+        color: #3498db;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #3498db;
+        border-color: #3498db;
+    }
+</style>
 {% endblock %} 
