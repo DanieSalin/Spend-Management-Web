@@ -1,6 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+from django.views.generic import TemplateView
 
 app_name = 'finance_app'
 
@@ -23,6 +24,7 @@ urlpatterns = [
     path('accounts/logout/', views.CustomLogoutView.as_view(), name='custom_logout'),
     path('accounts/profile/update/', views.update_profile, name='update-profile'),
     path('accounts/profile/sync-google/', views.sync_profile_from_google, name='sync-profile-from-google'),
+    path('accounts/inactive/', views.AccountInactiveView.as_view(), name='account_inactive'),
     # Trang chủ và Dashboard
     path('', views.LandingView.as_view(), name='landing'),  # Trang giới thiệu
     path('home/', views.HomeView.as_view(), name='index'),  # Trang chủ sau khi đăng nhập

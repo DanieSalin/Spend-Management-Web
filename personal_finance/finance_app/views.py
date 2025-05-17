@@ -65,7 +65,8 @@ class CustomLoginView(LoginView):
         user = form.get_user()
         if not user.is_active:
             messages.error(self.request, 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.')
-            return self.form_invalid(form)
+            # Chuyển hướng đến trang tài khoản bị vô hiệu
+            return redirect('account_inactive')
         return super().form_valid(form)
     
     def get_success_url(self):
@@ -1931,3 +1932,11 @@ def sync_profile_from_google(request):
             'success': False,
             'message': f'Có lỗi xảy ra: {str(e)}'
         })
+
+class AccountInactiveView(TemplateView):
+    template_name = 'account/account_inactive.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        messages.warning(self.request, 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.')
+        return context
