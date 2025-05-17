@@ -1818,8 +1818,34 @@ def update_profile(request):
             old_username = user.username
             old_email = user.email
             
-            user.username = request.POST.get('username', '')
-            user.email = request.POST.get('email', '')
+            # Lấy dữ liệu từ form
+            username = request.POST.get('username', '')
+            email = request.POST.get('email', '')
+            first_name = request.POST.get('first_name', '')
+            last_name = request.POST.get('last_name', '')
+            
+            if username and username != old_username:
+                # Kiểm tra xem username đã tồn tại chưa
+                if User.objects.filter(username=username).exclude(id=user.id).exists():
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Tên đăng nhập đã tồn tại, vui lòng chọn tên đăng nhập khác'
+                    })
+                user.username = username
+                
+            if email and email != old_email:
+                # Kiểm tra xem email đã tồn tại chưa
+                if User.objects.filter(email=email).exclude(id=user.id).exists():
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Email đã tồn tại, vui lòng sử dụng email khác'
+                    })
+                user.email = email
+            
+            # Cập nhật first_name và last_name
+            user.first_name = first_name
+            user.last_name = last_name
+            
             user.save()
 
             # Tạo thông báo đơn giản
@@ -1844,3 +1870,64 @@ def update_profile(request):
         'success': False,
         'message': 'Phương thức không được hỗ trợ'
     })
+
+@login_required
+def sync_profile_from_google(request):
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Phương thức không được hỗ trợ'
+        })
+    
+    try:
+        # Kiểm tra xem người dùng có liên kết với tài khoản Google không
+        from allauth.socialaccount.models import SocialAccount
+        social_accounts = SocialAccount.objects.filter(user=request.user, provider='google')
+        
+        if not social_accounts.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'Tài khoản của bạn chưa được liên kết với Google'
+            })
+        
+        # Lấy tài khoản Google đầu tiên
+        social_account = social_accounts.first()
+        extra_data = social_account.extra_data
+        
+        # Log thông tin để debug
+        print(f"Google account extra data: {extra_data}")
+        
+        # Cập nhật thông tin người dùng
+        user = request.user
+        
+        # Cập nhật email
+        if 'email' in extra_data:
+            user.email = extra_data['email']
+        
+        # Cập nhật họ tên
+        if 'given_name' in extra_data:
+            user.first_name = extra_data['given_name']
+        if 'family_name' in extra_data:
+            user.last_name = extra_data['family_name']
+        
+        # Lưu thay đổi
+        user.save()
+        
+        # Tạo thông báo
+        create_notification(
+            user,
+            'Đồng bộ thông tin từ Google',
+            'Thông tin tài khoản của bạn đã được đồng bộ từ Google thành công',
+            'system'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Đã đồng bộ thông tin từ Google thành công'
+        })
+    except Exception as e:
+        print(f"Lỗi khi đồng bộ từ Google: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Có lỗi xảy ra: {str(e)}'
+        })
