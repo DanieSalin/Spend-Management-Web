@@ -2,72 +2,104 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Quản lý Người dùng - Admin{% endblock %}
+{% block title %}Quản lý người dùng{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <h2 class="mb-4">Quản lý Người dùng</h2>
-    
+<div class="container-fluid py-4">
     <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="fas fa-users me-2"></i>Quản lý người dùng
+            </h4>
+            <div class="btn-group">
+                <a href="{% url 'finance_app:admin-export-users' %}" class="btn btn-light btn-sm">
+                    <i class="fas fa-file-excel me-1"></i>Xuất Excel
+                </a>
+            </div>
+        </div>
         <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="active">Đang hoạt động</option>
+                        <option value="inactive">Bị khóa</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="sortFilter">
+                        <option value="newest">Mới nhất</option>
+                        <option value="oldest">Cũ nhất</option>
+                        <option value="name_asc">Tên A-Z</option>
+                        <option value="name_desc">Tên Z-A</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="usersTable">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Tên đăng nhập</th>
                             <th>Email</th>
-                            <th>Ngày đăng ký</th>
-                            <th>Lần cuối đăng nhập</th>
+                            <th>Ngày tham gia</th>
                             <th>Số giao dịch</th>
-                            <th>Số thẻ/ví</th>
+                            <th>Số ví/thẻ</th>
                             <th>Số mục tiêu</th>
                             <th>Trạng thái</th>
                             <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for user in users %}
+                        {% for detail in user_details %}
                         <tr>
-                            <td>{{ user.id }}</td>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.date_joined|date:"d/m/Y H:i" }}</td>
-                            <td>{{ user.last_login|date:"d/m/Y H:i"|default:"Chưa đăng nhập" }}</td>
-                            <td>{{ user.transaction_count }}</td>
-                            <td>{{ user.card_count }}</td>
-                            <td>{{ user.goal_count }}</td>
+                            <td>{{ detail.user.username }}</td>
+                            <td>{{ detail.user.email }}</td>
+                            <td>{{ detail.user.date_joined|date:"d/m/Y H:i" }}</td>
+                            <td>{{ detail.transaction_count }}</td>
+                            <td>{{ detail.card_count }}</td>
+                            <td>{{ detail.goal_count }}</td>
                             <td>
-                                <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
-                                    {{ user.is_active|yesno:"Hoạt động,Bị khóa" }}
+                                <span class="badge {% if detail.user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ detail.user.is_active|yesno:"Đang hoạt động,Bị khóa" }}
                                 </span>
                             </td>
                             <td>
                                 <div class="btn-group">
-                                    <a href="{% url 'finance_app:admin-user-detail' user.id %}" class="btn btn-sm btn-info">
+                                    <a href="{% url 'finance_app:admin-user-detail' detail.user.id %}" class="btn btn-info btn-sm" title="Chi tiết">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    {% if user.id != request.user.id %}
-                                    <button onclick="toggleUserStatus({{ user.id }})" class="btn btn-sm {% if user.is_active %}btn-warning{% else %}btn-success{% endif %}" title="{% if user.is_active %}Khóa tài khoản{% else %}Mở khóa tài khoản{% endif %}">
-                                        <i class="fas {% if user.is_active %}fa-lock{% else %}fa-unlock{% endif %}"></i>
-                                    </button>
-                                    <button onclick="confirmDelete({{ user.id }})" class="btn btn-sm btn-danger" title="Xóa tài khoản">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    {% else %}
-                                    <button class="btn btn-sm btn-secondary" disabled title="Không thể thực hiện thao tác với tài khoản của bạn">
-                                        <i class="fas fa-lock"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-secondary" disabled title="Không thể thực hiện thao tác với tài khoản của bạn">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    {% if not detail.user.is_superuser %}
+                                        <button type="button" class="btn btn-sm {% if detail.user.is_active %}btn-danger{% else %}btn-success{% endif %} toggle-status"
+                                                data-user-id="{{ detail.user.id }}"
+                                                data-status="{{ detail.user.is_active|yesno:'true,false' }}"
+                                                title="{% if detail.user.is_active %}Khóa{% else %}Mở khóa{% endif %}">
+                                            {% if detail.user.is_active %}
+                                                <i class="fas fa-lock"></i> Khóa
+                                            {% else %}
+                                                <i class="fas fa-unlock"></i> Mở khóa
+                                            {% endif %}
+                                        </button>
+                                    {% endif %}
+                                    {% if not detail.user.is_superuser %}
+                                        <button type="button" class="btn btn-danger btn-sm delete-user" data-user-id="{{ detail.user.id }}" title="Xóa">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     {% endif %}
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="10" class="text-center">Không có người dùng nào</td>
+                            <td colspan="8" class="text-center">Không có người dùng nào</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -77,54 +109,168 @@
     </div>
 </div>
 
-<!-- Modal xác nhận xóa -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
+<!-- Modal xác nhận xóa người dùng -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Xác nhận xóa</h5>
+                <h5 class="modal-title">Xác nhận xóa người dùng</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                Bạn có chắc chắn muốn xóa người dùng này không?
+                <p>Bạn có chắc muốn xóa người dùng này?</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                <form id="deleteForm" method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Xóa</button>
-                </form>
+                <button type="button" class="btn btn-danger" id="confirmDeleteUser">Xóa</button>
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function toggleUserStatus(userId) {
-    fetch(`{% url 'finance_app:admin-toggle-user-status' 0 %}`.replace('0', userId), {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-        },
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Có lỗi xảy ra: ' + data.message);
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const sortFilter = document.getElementById('sortFilter');
+    const table = document.getElementById('usersTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+    function filterTable() {
+        const searchText = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const sortValue = sortFilter.value;
+
+        // Lọc theo tìm kiếm và trạng thái
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const username = row.cells[0].textContent.toLowerCase();
+            const email = row.cells[1].textContent.toLowerCase();
+            const status = row.cells[6].textContent.trim();
+
+            const matchesSearch = username.includes(searchText) || email.includes(searchText);
+            const matchesStatus = !statusValue || 
+                (statusValue === 'active' && status === 'Đang hoạt động') ||
+                (statusValue === 'inactive' && status === 'Bị khóa');
+
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        }
+
+        // Sắp xếp
+        const tbody = table.getElementsByTagName('tbody')[0];
+        const rowsArray = Array.from(rows);
+        rowsArray.sort((a, b) => {
+            if (sortValue === 'newest') {
+                return new Date(b.cells[2].textContent) - new Date(a.cells[2].textContent);
+            } else if (sortValue === 'oldest') {
+                return new Date(a.cells[2].textContent) - new Date(b.cells[2].textContent);
+            } else if (sortValue === 'name_asc') {
+                return a.cells[0].textContent.localeCompare(b.cells[0].textContent);
+            } else if (sortValue === 'name_desc') {
+                return b.cells[0].textContent.localeCompare(a.cells[0].textContent);
+            }
+        });
+
+        rowsArray.forEach(row => tbody.appendChild(row));
+    }
+
+    searchInput.addEventListener('keyup', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+    sortFilter.addEventListener('change', filterTable);
+
+    // Xử lý khóa/mở khóa người dùng
+    document.querySelectorAll('.toggle-status').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const currentStatus = this.dataset.status;
+            
+            fetch(`/manage/users/${userId}/toggle-status/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Có lỗi xảy ra');
+                }
+            });
+        });
+    });
+
+    // Xử lý xóa người dùng
+    let userIdToDelete = null;
+    
+    document.querySelectorAll('.delete-user').forEach(button => {
+        button.addEventListener('click', function() {
+            userIdToDelete = this.dataset.userId;
+            $('#deleteUserModal').modal('show');
+        });
+    });
+
+    // Xử lý xóa người dùng khi nhấn nút xác nhận
+    $('#confirmDeleteUser').click(function() {
+        if (userIdToDelete) {
+            fetch(`/manage/users/${userIdToDelete}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => {
+                location.reload();
+            })
+            .catch(error => {
+                alert('Có lỗi xảy ra khi xóa người dùng');
+            });
         }
     });
-}
+});
 
-function confirmDelete(userId) {
-    const modal = document.getElementById('deleteModal');
-    const form = document.getElementById('deleteForm');
-    form.action = `{% url 'finance_app:admin-delete-user' 0 %}`.replace('0', userId);
-    new bootstrap.Modal(modal).show();
+function exportToExcel() {
+    // TODO: Implement Excel export
+    alert('Chức năng xuất Excel đang được phát triển');
 }
 </script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .badge {
+        padding: 0.5em 0.8em;
+        font-weight: 500;
+    }
+
+    .form-select:focus,
+    .form-control:focus {
+        box-shadow: none;
+        border-color: #3498db;
+    }
+
+    .input-group-text {
+        border: none;
+    }
+
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+
+    .btn-group .btn:hover {
+        transform: translateY(-2px);
+    }
+</style>
 {% endblock %} 

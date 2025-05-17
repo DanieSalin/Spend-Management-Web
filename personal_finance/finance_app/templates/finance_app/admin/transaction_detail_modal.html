@@ -1,0 +1,52 @@
+{% load humanize %}
+
+<div class="transaction-detail">
+    <div class="row mb-3">
+        <div class="col-md-4 text-muted">Ngày:</div>
+        <div class="col-md-8">{{ transaction.date|date:"d/m/Y" }}</div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-4 text-muted">Loại giao dịch:</div>
+        <div class="col-md-8">
+            <span class="badge {% if transaction.transaction_type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
+                {{ transaction.get_transaction_type_display }}
+            </span>
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-4 text-muted">Số tiền:</div>
+        <div class="col-md-8 {% if transaction.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+            {{ transaction.amount|intcomma }} VNĐ
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-4 text-muted">Danh mục:</div>
+        <div class="col-md-8">
+            {{ transaction.category.name }}
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-4 text-muted">Thẻ/Ví:</div>
+        <div class="col-md-8">
+            {{ transaction.card.name }}
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-4 text-muted">Ghi chú:</div>
+        <div class="col-md-8">
+            {{ transaction.note|default:"Không có ghi chú" }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4 text-muted">Người dùng:</div>
+        <div class="col-md-8">
+            {{ transaction.user.username }}
+        </div>
+    </div>
+</div>

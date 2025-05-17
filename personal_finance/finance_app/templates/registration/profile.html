@@ -4,6 +4,12 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Thêm div thông báo -->
+    <div id="notification" class="alert alert-success" style="display: none;" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
+        <span id="notification-message"></span>
+    </div>
+
     <div class="row">
         <div class="col-md-8 offset-md-2">
             <div class="card">
@@ -33,47 +39,51 @@
                             </form>
                         </div>
                         <div class="col-md-8">
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <strong>Tên đăng nhập:</strong>
+                            <form method="post" id="profileForm">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Tên đăng nhập</label>
+                                    <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}">
                                 </div>
-                                <div class="col-md-8">
-                                    {{ user.username }}
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}">
                                 </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <strong>Email:</strong>
+                                <div class="d-flex justify-content-between">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Lưu thay đổi
+                                    </button>
+                                    <a href="{% url 'password_change' %}" class="btn btn-secondary">
+                                        <i class="fas fa-key me-2"></i>Đổi mật khẩu
+                                    </a>
                                 </div>
-                                <div class="col-md-8">
-                                    {{ user.email }}
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <strong>Ngày tham gia:</strong>
-                                </div>
-                                <div class="col-md-8">
-                                    {{ user.date_joined|date:"d/m/Y" }}
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <strong>Lần đăng nhập cuối:</strong>
-                                </div>
-                                <div class="col-md-8">
-                                    {{ user.last_login|date:"d/m/Y H:i" }}
+                            </form>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="fas fa-info-circle me-2"></i>Thông tin tài khoản</h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-2"><strong>Họ và tên:</strong> {{ user.get_full_name|default:"Chưa cập nhật" }}</p>
+                                            <p class="mb-2"><strong>Ngày tham gia:</strong> {{ user.date_joined|date:"d/m/Y" }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-2"><strong>Lần đăng nhập cuối:</strong> {{ user.last_login|date:"d/m/Y H:i" }}</p>
+                                            <p class="mb-2"><strong>Trạng thái:</strong> 
+                                                {% if user.is_active %}
+                                                    <span class="badge bg-success">Đang hoạt động</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Bị khóa</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="mt-4">
-                        <a href="{% url 'password_change' %}" class="btn btn-primary">
-                            <i class="fas fa-key"></i> Đổi mật khẩu
-                        </a>
-                        <a href="{% url 'finance_app:index' %}" class="btn btn-secondary">
-                            <i class="fas fa-home"></i> Về trang chủ
-                        </a>
                     </div>
                 </div>
             </div>
@@ -87,5 +97,164 @@ document.getElementById('id_avatar').addEventListener('change', function() {
     var fileName = this.files[0] ? this.files[0].name : '';
     document.getElementById('file-selected').textContent = fileName ? 'Đã chọn: ' + fileName : '';
 });
+
+// Xử lý form cập nhật thông tin
+document.getElementById('profileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+
+    fetch('{% url "finance_app:update-profile" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Hiển thị thông báo thành công
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            notificationMessage.textContent = data.message;
+            notification.style.display = 'block';
+            
+            // Ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+            
+            // Tải lại trang sau khi hiển thị thông báo
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            // Hiển thị thông báo lỗi
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            notification.className = 'alert alert-danger';
+            notificationMessage.textContent = data.message || 'Có lỗi xảy ra khi cập nhật thông tin';
+            notification.style.display = 'block';
+            
+            // Ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                notification.style.display = 'none';
+                notification.className = 'alert alert-success';
+            }, 3000);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Hiển thị thông báo lỗi
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notification-message');
+        notification.className = 'alert alert-danger';
+        notificationMessage.textContent = 'Có lỗi xảy ra khi cập nhật thông tin';
+        notification.style.display = 'block';
+        
+        // Ẩn thông báo sau 3 giây
+        setTimeout(() => {
+            notification.style.display = 'none';
+            notification.className = 'alert alert-success';
+        }, 3000);
+    });
+});
 </script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: none;
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        border-bottom: none;
+        padding: 1.5rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .form-control {
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .form-control:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3498db;
+        border-color: #3498db;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2980b9;
+        border-color: #2980b9;
+        transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+        transform: translateY(-1px);
+    }
+    
+    .badge {
+        font-size: 0.875rem;
+        padding: 0.5em 0.75em;
+        border-radius: 0.5rem;
+    }
+    
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    .text-secondary {
+        color: #6c757d !important;
+    }
+    
+    .rounded-circle {
+        border: 3px solid #fff;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    /* Thêm style cho thông báo */
+    .alert {
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border: none;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+</style>
 {% endblock %} 

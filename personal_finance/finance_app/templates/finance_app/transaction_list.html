@@ -141,7 +141,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <form method="get" class="row g-3">
+                    <form method="get" id="searchForm" class="row g-3">
                         <div class="col-md-2">
                             <label for="type" class="form-label">Loại giao dịch</label>
                             <select name="type" id="type" class="form-select">
@@ -200,7 +200,7 @@
                         <div class="col-md-12">
                             <label for="search" class="form-label">Tìm kiếm</label>
                             <div class="input-group">
-                                <input type="text" name="search" id="search" class="form-control" 
+                                <input type="text" name="search" id="searchInput" class="form-control" 
                                        placeholder="Tìm theo ghi chú, số tiền..." 
                                        value="{{ request.GET.search|default:'' }}">
                                 <button type="submit" class="btn btn-primary">
@@ -226,108 +226,150 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Ngày</th>
-                                    <th>Loại</th>
-                                    <th>Số tiền</th>
-                                    <th>Danh mục</th>
-                                    <th>Thẻ/Ví</th>
-                                    <th>Ghi chú</th>
-                                    <th>Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for transaction in transactions %}
-                                <tr>
-                                    <td>{{ transaction.date|date:"d/m/Y" }}</td>
-                                    <td>
-                                        {% if transaction.transaction_type == 'income' %}
-                                        <span class="badge bg-success">Thu nhập</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Chi tiêu</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ transaction.amount|intcomma }} VNĐ</td>
-                                    <td>
-                                        <i class="fas {{ transaction.category.icon }} me-1"></i>
-                                        {{ transaction.category.name }}
-                                    </td>
-                                    <td>
-                                        <i class="fas fa-credit-card me-1"></i>
-                                        {{ transaction.card.name }}
-                                    </td>
-                                    <td>{{ transaction.note|default:"-" }}</td>
-                                    <td>
-                                        <a href="{% url 'finance_app:transaction-update' transaction.pk %}" 
-                                           class="btn btn-sm btn-primary" title="Sửa">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'finance_app:transaction-delete' transaction.pk %}" 
-                                           class="btn btn-sm btn-danger" title="Xóa">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="7" class="text-center">Không có giao dịch nào</td>
-                                </tr>
+                    <div id="searchResults">
+                        {% if transactions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th>Loại</th>
+                                        <th>Số tiền</th>
+                                        <th>Danh mục</th>
+                                        <th>Thẻ/Ví</th>
+                                        <th>Ghi chú</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in transactions %}
+                                    <tr>
+                                        <td>{{ transaction.date|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if transaction.transaction_type == 'income' %}
+                                            <span class="badge bg-success">Thu nhập</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Chi tiêu</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ transaction.amount|intcomma }} VNĐ</td>
+                                        <td>
+                                            <i class="fas {{ transaction.category.icon }} me-1"></i>
+                                            {{ transaction.category.name }}
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-credit-card me-1"></i>
+                                            {{ transaction.card.name }}
+                                        </td>
+                                        <td>{{ transaction.note|default:"-" }}</td>
+                                        <td>
+                                            {% if 'manage/users' in request.path %}
+                                                <a href="{% url 'finance_app:transaction-detail' transaction.pk %}"
+                                                   class="btn btn-sm btn-info" title="Xem chi tiết">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{% url 'finance_app:transaction-detail' transaction.pk %}"
+                                                   class="btn btn-sm btn-info" title="Xem chi tiết">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'finance_app:transaction-update' transaction.pk %}"
+                                                   class="btn btn-sm btn-warning" title="Sửa">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'finance_app:transaction-delete' transaction.pk %}"
+                                                   class="btn btn-sm btn-danger" title="Xóa">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">Không có giao dịch nào</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if is_paginated %}
+                        <nav aria-label="Page navigation" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>Không tìm thấy giao dịch nào.
+                        </div>
+                        {% endif %}
                     </div>
-                    
-                    {% if is_paginated %}
-                    <nav aria-label="Page navigation" class="mt-4">
-                        <ul class="pagination justify-content-center">
-                            {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                    <i class="fas fa-angle-double-left"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                    <i class="fas fa-angle-left"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                            
-                            {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                            <li class="page-item active">
-                                <span class="page-link">{{ num }}</span>
-                            </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-                            </li>
-                            {% endif %}
-                            {% endfor %}
-                            
-                            {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                    <i class="fas fa-angle-right"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                    <i class="fas fa-angle-double-right"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+let searchTimeout;
+const searchInput = document.getElementById('searchInput');
+const searchForm = document.getElementById('searchForm');
+
+// Chỉ xử lý realtime cho ô tìm kiếm
+searchInput.addEventListener('input', function() {
+    // Xóa timeout cũ nếu có
+    clearTimeout(searchTimeout);
+    
+    // Tạo timeout mới
+    searchTimeout = setTimeout(() => {
+        searchForm.submit();
+    }, 500); // Đợi 500ms sau khi người dùng ngừng gõ
+});
+
+// Ngăn chặn form submit khi nhấn Enter
+searchForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    searchForm.submit();
+});
+</script>
 {% endblock %}
 
 {% block extra_css %}
