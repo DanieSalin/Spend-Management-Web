@@ -22,6 +22,7 @@ urlpatterns = [
     # Thêm dòng này vào urlpatterns trong personal_finance/urls.py
     path('accounts/logout/', views.CustomLogoutView.as_view(), name='custom_logout'),
     path('accounts/profile/update/', views.update_profile, name='update-profile'),
+    path('accounts/profile/sync-google/', views.sync_profile_from_google, name='sync-profile-from-google'),
     # Trang chủ và Dashboard
     path('', views.LandingView.as_view(), name='landing'),  # Trang giới thiệu
     path('home/', views.HomeView.as_view(), name='index'),  # Trang chủ sau khi đăng nhập
