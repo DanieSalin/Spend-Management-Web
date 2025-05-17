@@ -64,6 +64,12 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             
             # Nếu đã đăng nhập trước đó, cập nhật thông tin
             if sociallogin.is_existing:
+                # Kiểm tra tài khoản có bị khóa không
+                if not sociallogin.user.is_active:
+                    from django.shortcuts import redirect
+                    print(f"User {sociallogin.user.username} is inactive")
+                    return redirect('account_inactive')
+                    
                 # Cập nhật thông tin từ tài khoản Google nếu cần
                 if 'email' in sociallogin.account.extra_data:
                     user = sociallogin.user
@@ -89,6 +95,13 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             try:
                 # Nếu người dùng đã tồn tại, kết nối tài khoản xã hội với tài khoản đó
                 existing_user = User.objects.get(email=email)
+                
+                # Kiểm tra tài khoản có bị khóa không
+                if not existing_user.is_active:
+                    from django.shortcuts import redirect
+                    print(f"User {existing_user.username} is inactive")
+                    return redirect('account_inactive')
+                    
                 sociallogin.connect(request, existing_user)
                 print(f"Connected social account to existing user: {existing_user.username}")
             except User.DoesNotExist:
