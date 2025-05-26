@@ -43,7 +43,7 @@ class LandingView(TemplateView):
 class RegisterView(CreateView):
     form_class = RegisterForm
     template_name = 'registration/register.html'
-    success_url = reverse_lazy('login')
+    success_url = reverse_lazy('finance_app:login')
     
     def form_valid(self, form):
         response = super().form_valid(form)
